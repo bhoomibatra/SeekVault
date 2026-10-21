@@ -19,6 +19,10 @@ class FaissIndex:
         if self.index_path and self.meta_path and self.index_path.exists() and self.meta_path.exists():
             self.load()
 
+    def has_file(self, file_id: int) -> bool:
+        """Check whether at least one vector for the given file_id exists in the index."""
+        return file_id in self.vector_ids
+
     def add_vector(self, file_id: int, vector: np.ndarray) -> int:
         """Add a single normalized vector to the FAISS index."""
         # If vector is 1D, reshape to (1, D)

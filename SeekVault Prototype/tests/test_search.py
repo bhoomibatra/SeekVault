@@ -82,3 +82,45 @@ def test_chunked_long_document_search(test_env):
 
     # Ensure deduplication: each file should only appear once in search results
     assert len(matched_names) == len(set(matched_names)), "Search results contain duplicate file entries!"
+
+def test_automatic_vector_integrity_healing(test_env):
+    repo, search_engine, pipeline, auth_dir = test_env
+
+    # 1. Verify initial vectors exist
+    f1_path = auth_dir / "ml_unit3.txt"
+    f2_path = auth_dir / "dbms_lecture.txt"
+    f1_rec = repo.get_file_by_path(str(f1_path))
+    f2_rec = repo.get_file_by_path(str(f2_path))
+    assert f1_rec is not None and f2_rec is not None
+
+    assert search_engine.text_index.has_file(f1_rec["id"]) is True
+    assert search_engine.text_index.has_file(f2_rec["id"]) is True
+
+    # 2. Simulate FAISS index loss / corruption
+    search_engine.text_index.reset()
+    assert search_engine.text_index.index.ntotal == 0
+    assert search_engine.text_index.has_file(f1_rec["id"]) is False
+    assert search_engine.text_index.has_file(f2_rec["id"]) is False
+
+    # Search now returns nothing
+    assert len(search_engine.search_text("candidate elimination")) == 0
+
+    # 3. Process f1 again: despite hash match, missing vector is detected & healed
+    pipeline.process_file(str(f1_path))
+    assert search_engine.text_index.has_file(f1_rec["id"]) is True
+    assert search_engine.text_index.has_file(f2_rec["id"]) is False
+
+    # Search for f1 now succeeds
+    res1 = search_engine.search_text("candidate elimination")
+    assert len(res1) > 0
+    assert res1[0]["file_name"] == "ml_unit3.txt"
+
+    # 4. Use batch reconcile_missing_vectors to heal remaining files (f2)
+    healed_count = pipeline.reconcile_missing_vectors()
+    assert healed_count >= 1
+    assert search_engine.text_index.has_file(f2_rec["id"]) is True
+
+    # Search for f2 now succeeds
+    res2 = search_engine.search_text("database normalization")
+    assert len(res2) > 0
+    assert res2[0]["file_name"] == "dbms_lecture.txt"

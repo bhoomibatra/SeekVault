@@ -28,7 +28,7 @@ class IngestionPipeline:
         self.repository = repository or Repository()
         self.search_engine = search_engine or SearchEngine(repository=self.repository)
 
-    def process_file(self, file_path_str: str) -> Optional[Dict[str, Any]]:
+    def process_file(self, file_path_str: str, force_reembed: bool = False) -> Optional[Dict[str, Any]]:
         """
         Process a single file through the complete SeekVault pipeline:
         Authorization -> Extraction -> Privacy -> Classification -> Embedding -> Storage.
@@ -57,9 +57,23 @@ class IngestionPipeline:
 
         # Check existing record to avoid redundant re-indexing if hash hasn't changed
         existing = self.repository.get_file_by_path(str(file_path))
-        if existing and existing.get("file_hash") == file_hash and existing.get("status") == "INDEXED":
-            logger.debug(f"File {file_path.name} unchanged (hash match). Skipping.")
-            return existing
+        if not force_reembed and existing and existing.get("file_hash") == file_hash and existing.get("status") == "INDEXED":
+            tier = existing.get("privacy_tier")
+            file_id = existing["id"]
+            # Integrity check: verify that vectors actually exist in FAISS index
+            # (unless it's METADATA_ONLY where no vectors should exist)
+            vector_missing = False
+            if tier != TIER_METADATA_ONLY:
+                if is_image:
+                    vector_missing = not self.search_engine.image_index.has_file(file_id)
+                else:
+                    vector_missing = not self.search_engine.text_index.has_file(file_id)
+
+            if not vector_missing:
+                logger.debug(f"File {file_path.name} unchanged (hash match and vector present). Skipping.")
+                return existing
+            else:
+                logger.info(f"Integrity healing: file {file_path.name} (id={file_id}) indexed in DB but missing from FAISS. Regenerating embeddings.")
 
         logger.info(f"Ingesting {file_type}: {file_path.name}")
 
@@ -108,6 +122,8 @@ class IngestionPipeline:
             # 3. Vector Embedding with sliding-window chunking
             if privacy_tier != TIER_METADATA_ONLY and sanitized_text.strip():
                 embedder = EmbeddingManager.get_text_embedder()
+                # Clean up any existing vector mappings for this file to prevent duplicates
+                self.search_engine.text_index.remove_file(file_id)
                 chunks = TextExtractor.chunk_text(sanitized_text, chunk_size=250, overlap=50)
                 for chunk in chunks:
                     if chunk.strip():
@@ -166,6 +182,8 @@ class IngestionPipeline:
             # Multimodal Vision Vector Embedding
             if privacy_tier != TIER_METADATA_ONLY:
                 img_embedder = EmbeddingManager.get_image_embedder()
+                # Clean up any existing vector mappings for this file to prevent duplicates
+                self.search_engine.image_index.remove_file(file_id)
                 img_vec = img_embedder.embed_image(file_path)
                 faiss_id = self.search_engine.image_index.add_vector(file_id, img_vec)
                 self.repository.save_vector_mapping(file_id, "IMAGE", faiss_id, IMAGE_EMBEDDING_DIM)
@@ -204,3 +222,39 @@ class IngestionPipeline:
         # Update version clustering after scan
         VersionDetector.detect_and_update_versions(self.repository)
         return count
+
+    def reconcile_missing_vectors(self) -> int:
+        """
+        Scan all SQLite file records marked as 'INDEXED'. If any non-METADATA_ONLY
+        file is missing its embedding vectors in FAISS (e.g. index corruption, index deletion),
+        regenerate and restore its embeddings automatically.
+
+        Returns:
+            Count of healed files.
+        """
+        healed_count = 0
+        indexed_files = self.repository.get_all_files(status="INDEXED")
+        for file_rec in indexed_files:
+            tier = file_rec.get("privacy_tier")
+            if tier == TIER_METADATA_ONLY:
+                continue
+
+            file_id = file_rec["id"]
+            is_image = file_rec.get("file_type") == "IMAGE"
+            vector_missing = False
+            if is_image:
+                vector_missing = not self.search_engine.image_index.has_file(file_id)
+            else:
+                vector_missing = not self.search_engine.text_index.has_file(file_id)
+
+            if vector_missing:
+                file_path_str = file_rec.get("file_path")
+                if file_path_str and Path(file_path_str).exists():
+                    logger.info(f"Reconciling vector for: {file_rec.get('file_name')} (id={file_id})")
+                    res = self.process_file(file_path_str, force_reembed=True)
+                    if res:
+                        healed_count += 1
+                else:
+                    logger.warning(f"Cannot heal missing vector; file not found on disk: {file_path_str}")
+
+        return healed_count

@@ -203,6 +203,16 @@ class Repository:
             cursor.execute(query, params)
             return [dict(r) for r in cursor.fetchall()]
 
+    def get_all_files(self, status: Optional[str] = "INDEXED") -> List[Dict[str, Any]]:
+        """Retrieve all file records, optionally filtered by status."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            if status:
+                cursor.execute("SELECT * FROM files WHERE status = ?", (status,))
+            else:
+                cursor.execute("SELECT * FROM files")
+            return [dict(r) for r in cursor.fetchall()]
+
     # -------------------------------------------------------------
     # Content & Privacy Entities
     # -------------------------------------------------------------

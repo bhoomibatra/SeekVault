@@ -137,8 +137,8 @@ flowchart TD
 | **Phase 2** | **TASK-0003** | Fix Windows Path Case-Normalization in Repository | TASK-0002 | **DONE** |
 | **Phase 2** | **TASK-0004** | Resynchronize SQLite & FAISS Persistence with Active Workspace | TASK-0003 | **DONE** |
 | **Phase 3** | **TASK-0005** | Implement Sliding-Window Document Chunking for Long Texts | TASK-0004 | **DONE** |
-| **Phase 3** | **TASK-0006** | Vector Index Synchronization & Integrity Healing | TASK-0004 | **NEXT UP** |
-| **Phase 4** | **TASK-0007** | Filter Editor Temporary Files & Debounce Watchdog Events | TASK-0004 | **READY** |
+| **Phase 3** | **TASK-0006** | Vector Index Synchronization & Integrity Healing | TASK-0004 | **DONE** |
+| **Phase 4** | **TASK-0007** | Filter Editor Temporary Files & Debounce Watchdog Events | TASK-0004 | **NEXT UP** |
 | **Phase 4** | **TASK-0008** | In-Memory FAISS Index Hot-Reloading for Search Engine | TASK-0007 | **READY** |
 | **Phase 4** | **TASK-0009** | Automated Stale Vector & Dead Record Reconciliation | TASK-0006 | **READY** |
 | **Phase 5** | **TASK-0010** | Add "Open File" and "Open in File Explorer" Shell Actions | TASK-0004 | **READY** |
