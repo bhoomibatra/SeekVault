@@ -1,0 +1,206 @@
+import os
+from pathlib import Path
+from typing import Dict, Any, Optional
+import datetime
+from seekvault.config import (
+    DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS,
+    TIER_FULL, TIER_REDACTED, TIER_METADATA_ONLY,
+    TEXT_EMBEDDING_DIM, IMAGE_EMBEDDING_DIM
+)
+from seekvault.database.repository import Repository
+from seekvault.extraction.text_extractor import TextExtractor
+from seekvault.extraction.image_extractor import ImageExtractor
+from seekvault.extraction.ocr_extractor import OCRExtractor
+from seekvault.privacy.analyzer import PrivacyAnalyzer
+from seekvault.privacy.sanitizer import PrivacySanitizer
+from seekvault.privacy.classifier import PrivacyClassifier
+from seekvault.embeddings.manager import EmbeddingManager
+from seekvault.search.faiss_index import FaissIndex
+from seekvault.search.engine import SearchEngine
+from seekvault.organization.duplicate_detector import DuplicateDetector
+from seekvault.organization.version_detector import VersionDetector
+import logging
+
+logger = logging.getLogger(__name__)
+
+class IngestionPipeline:
+    def __init__(self, repository: Optional[Repository] = None, search_engine: Optional[SearchEngine] = None):
+        self.repository = repository or Repository()
+        self.search_engine = search_engine or SearchEngine(repository=self.repository)
+
+    def process_file(self, file_path_str: str) -> Optional[Dict[str, Any]]:
+        """
+        Process a single file through the complete SeekVault pipeline:
+        Authorization -> Extraction -> Privacy -> Classification -> Embedding -> Storage.
+        """
+        file_path = Path(file_path_str)
+        if not file_path.exists() or not file_path.is_file():
+            return None
+
+        # 1. Authorization check
+        if not self.repository.is_path_authorized(str(file_path)):
+            logger.info(f"Skipping unauthorized file: {file_path}")
+            return None
+
+        folder_id = self.repository.get_folder_for_path(str(file_path))
+        ext = file_path.suffix.lower()
+        if ext not in (DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS):
+            logger.debug(f"Skipping unsupported extension {ext}: {file_path}")
+            return None
+
+        stat = file_path.stat()
+        file_size = stat.st_size
+        modified_at = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        file_hash = DuplicateDetector.calculate_file_hash(file_path)
+        is_image = ext in IMAGE_EXTENSIONS
+        file_type = "IMAGE" if is_image else "DOCUMENT"
+
+        # Check existing record to avoid redundant re-indexing if hash hasn't changed
+        existing = self.repository.get_file_by_path(str(file_path))
+        if existing and existing.get("file_hash") == file_hash and existing.get("status") == "INDEXED":
+            logger.debug(f"File {file_path.name} unchanged (hash match). Skipping.")
+            return existing
+
+        logger.info(f"Ingesting {file_type}: {file_path.name}")
+
+        # 2. Extraction & Privacy Processing
+        if not is_image:
+            extract_res = TextExtractor.extract(file_path)
+            raw_text = extract_res.get("text", "")
+            raw_chars = len(raw_text)
+
+            # Privacy Analysis
+            detected_entities = PrivacyAnalyzer.analyze(raw_text)
+            privacy_tier = PrivacyClassifier.classify(file_path.name, raw_text, detected_entities)
+
+            # Sanitization (original file is NEVER modified)
+            if privacy_tier == TIER_REDACTED:
+                sanitized_text = PrivacySanitizer.sanitize(raw_text, detected_entities)
+            elif privacy_tier == TIER_METADATA_ONLY:
+                sanitized_text = ""
+            else:
+                sanitized_text = raw_text
+
+            # Save File record in SQLite
+            file_id = self.repository.upsert_file(
+                folder_id=folder_id,
+                file_path=str(file_path),
+                file_name=file_path.name,
+                file_extension=ext,
+                file_size=file_size,
+                file_hash=file_hash,
+                file_type=file_type,
+                modified_at=modified_at,
+                privacy_tier=privacy_tier,
+                status="INDEXED"
+            )
+
+            # Save Content & Entities
+            self.repository.save_file_content(
+                file_id=file_id,
+                raw_char_count=raw_chars,
+                searchable_text_preview=raw_text[:2000],
+                redacted_preview=sanitized_text[:2000],
+                has_ocr=False
+            )
+            self.repository.save_detected_entities(file_id, detected_entities)
+
+            # 3. Vector Embedding with sliding-window chunking
+            if privacy_tier != TIER_METADATA_ONLY and sanitized_text.strip():
+                embedder = EmbeddingManager.get_text_embedder()
+                chunks = TextExtractor.chunk_text(sanitized_text, chunk_size=250, overlap=50)
+                for chunk in chunks:
+                    if chunk.strip():
+                        vec = embedder.embed_text(chunk)
+                        faiss_id = self.search_engine.text_index.add_vector(file_id, vec)
+                        self.repository.save_vector_mapping(file_id, "TEXT", faiss_id, TEXT_EMBEDDING_DIM)
+
+        else:
+            # Image Processing
+            meta_res = ImageExtractor.extract_metadata(file_path)
+            visual_meta = {
+                "width": meta_res.get("width"),
+                "height": meta_res.get("height"),
+                "color_mode": meta_res.get("color_mode"),
+                "format": meta_res.get("format"),
+                "aspect_ratio": meta_res.get("aspect_ratio"),
+                "exif": meta_res.get("exif", {})
+            }
+
+            # Optional OCR on image
+            ocr_res = OCRExtractor.extract_text(file_path)
+            ocr_text = ocr_res.get("text", "")
+            has_ocr = bool(ocr_text)
+
+            detected_entities = []
+            if ocr_text:
+                detected_entities = PrivacyAnalyzer.analyze(ocr_text)
+
+            privacy_tier = PrivacyClassifier.classify(file_path.name, ocr_text, detected_entities)
+
+            # Save File record
+            file_id = self.repository.upsert_file(
+                folder_id=folder_id,
+                file_path=str(file_path),
+                file_name=file_path.name,
+                file_extension=ext,
+                file_size=file_size,
+                file_hash=file_hash,
+                file_type=file_type,
+                modified_at=modified_at,
+                privacy_tier=privacy_tier,
+                status="INDEXED",
+                visual_metadata=visual_meta
+            )
+
+            self.repository.save_file_content(
+                file_id=file_id,
+                raw_char_count=len(ocr_text),
+                searchable_text_preview=ocr_text[:2000],
+                redacted_preview=ocr_text[:2000],
+                has_ocr=has_ocr
+            )
+            if detected_entities:
+                self.repository.save_detected_entities(file_id, detected_entities)
+
+            # Multimodal Vision Vector Embedding
+            if privacy_tier != TIER_METADATA_ONLY:
+                img_embedder = EmbeddingManager.get_image_embedder()
+                img_vec = img_embedder.embed_image(file_path)
+                faiss_id = self.search_engine.image_index.add_vector(file_id, img_vec)
+                self.repository.save_vector_mapping(file_id, "IMAGE", faiss_id, IMAGE_EMBEDDING_DIM)
+
+        return self.repository.get_file_by_id(file_id)
+
+    def remove_file(self, file_path_str: str) -> None:
+        """Handle file deletion: prune from SQLite and vector indices."""
+        file_rec = self.repository.get_file_by_path(file_path_str)
+        if file_rec:
+            file_id = file_rec["id"]
+            if file_rec["file_type"] == "IMAGE":
+                self.search_engine.image_index.remove_file(file_id)
+            else:
+                self.search_engine.text_index.remove_file(file_id)
+            self.repository.delete_file_by_path(file_path_str)
+            logger.info(f"Removed file from SeekVault: {file_path_str}")
+
+    def scan_folder(self, folder_path: str, is_recursive: bool = True) -> int:
+        """Scan and ingest all supported files within an authorized folder."""
+        count = 0
+        norm_dir = Path(folder_path)
+        if not norm_dir.exists():
+            return 0
+
+        pattern = "**/*" if is_recursive else "*"
+        for p in norm_dir.glob(pattern):
+            if p.is_file() and p.suffix.lower() in (DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS):
+                try:
+                    res = self.process_file(str(p))
+                    if res:
+                        count += 1
+                except Exception as e:
+                    logger.error(f"Error ingesting file {p}: {e}")
+
+        # Update version clustering after scan
+        VersionDetector.detect_and_update_versions(self.repository)
+        return count

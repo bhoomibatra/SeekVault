@@ -1,0 +1,9 @@
+Java Multi-Threading and Concurrency Notes
+==========================================
+
+Key topics:
+- Java Thread lifecycle: NEW, RUNNABLE, BLOCKED, WAITING, TIMED_WAITING, TERMINATED.
+- Synchronized methods and critical sections using intrinsic monitor locks.
+- Deadlock conditions: Mutual exclusion, Hold and wait, No preemption, Circular wait.
+- Executors framework and ThreadPoolExecutor for scalable thread management in backend services.
+- Exception handling in Java: Try, catch, finally, and custom exceptions.
