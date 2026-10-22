@@ -13,6 +13,31 @@ class FolderEventHandler(FileSystemEventHandler):
         self.pipeline = pipeline
         self._last_processed = {}
 
+    @staticmethod
+    def _is_temporary_file(path: str) -> bool:
+        """Return True if path represents a temporary, lock, or incomplete download file."""
+        if not path:
+            return False
+        filename = os.path.basename(path)
+        if not filename:
+            return False
+
+        # Check prefix commonly used for editor lock/swap files
+        if (
+            filename.startswith("~$")
+            or filename.startswith(".~")
+            or filename.startswith(".tmp")
+            or filename.startswith("~")
+        ):
+            return True
+
+        # Check temporary or incomplete download extensions
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in {".tmp", ".temp", ".crdownload", ".part", ".lock", ".swp", ".swo"}:
+            return True
+
+        return False
+
     def _should_debounce(self, path: str) -> bool:
         now = time.time()
         last_time = self._last_processed.get(path, 0)
@@ -25,6 +50,8 @@ class FolderEventHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         path = event.src_path
+        if self._is_temporary_file(path):
+            return
         ext = os.path.splitext(path)[1].lower()
         if ext in ALL_SUPPORTED_EXTENSIONS:
             if not self._should_debounce(path):
@@ -39,6 +66,8 @@ class FolderEventHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         path = event.src_path
+        if self._is_temporary_file(path):
+            return
         ext = os.path.splitext(path)[1].lower()
         if ext in ALL_SUPPORTED_EXTENSIONS:
             if not self._should_debounce(path):
@@ -53,6 +82,8 @@ class FolderEventHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         path = event.src_path
+        if self._is_temporary_file(path):
+            return
         ext = os.path.splitext(path)[1].lower()
         if ext in ALL_SUPPORTED_EXTENSIONS:
             logger.info(f"Watchdog: File deleted: {path}")
@@ -66,11 +97,16 @@ class FolderEventHandler(FileSystemEventHandler):
             return
         src_path = event.src_path
         dest_path = event.dest_path
+        if self._is_temporary_file(src_path) and self._is_temporary_file(dest_path):
+            return
         logger.info(f"Watchdog: File moved from {src_path} to {dest_path}")
         try:
-            self.pipeline.remove_file(src_path)
-            ext = os.path.splitext(dest_path)[1].lower()
-            if ext in ALL_SUPPORTED_EXTENSIONS:
-                self.pipeline.process_file(dest_path)
+            if not self._is_temporary_file(src_path):
+                self.pipeline.remove_file(src_path)
+            if not self._is_temporary_file(dest_path):
+                ext = os.path.splitext(dest_path)[1].lower()
+                if ext in ALL_SUPPORTED_EXTENSIONS:
+                    self.pipeline.process_file(dest_path)
         except Exception as e:
             logger.error(f"Error handling moved file: {e}")
+

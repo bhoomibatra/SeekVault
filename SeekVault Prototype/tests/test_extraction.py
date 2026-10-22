@@ -85,3 +85,50 @@ def test_text_chunking_boundaries_and_overlap():
     overlap_chunk1 = chunk1_words[:50]
     assert overlap_chunk0 == overlap_chunk1
     assert len(overlap_chunk0) == 50
+
+
+def test_handler_is_temporary_file():
+    from seekvault.monitoring.handler import FolderEventHandler
+
+    # Temporary / editor lock patterns
+    assert FolderEventHandler._is_temporary_file("C:/docs/~$Proposal.docx") is True
+    assert FolderEventHandler._is_temporary_file("/path/to/.~lock.Doc.docx#") is True
+    assert FolderEventHandler._is_temporary_file("~WRL0001.tmp") is True
+    assert FolderEventHandler._is_temporary_file(".tmp_file.pdf") is True
+    assert FolderEventHandler._is_temporary_file("C:/downloads/file.crdownload") is True
+    assert FolderEventHandler._is_temporary_file("C:/downloads/data.part") is True
+    assert FolderEventHandler._is_temporary_file("temp.tmp") is True
+    assert FolderEventHandler._is_temporary_file("temp.temp") is True
+
+    # Valid supported files
+    assert FolderEventHandler._is_temporary_file("C:/docs/Proposal.docx") is False
+    assert FolderEventHandler._is_temporary_file("C:/images/photo.png") is False
+    assert FolderEventHandler._is_temporary_file("C:/files/notes.txt") is False
+    assert FolderEventHandler._is_temporary_file("") is False
+
+
+def test_handler_ignores_temporary_events():
+    from unittest.mock import MagicMock
+    from watchdog.events import FileCreatedEvent, FileModifiedEvent, FileDeletedEvent, FileMovedEvent
+    from seekvault.monitoring.handler import FolderEventHandler
+
+    mock_pipeline = MagicMock()
+    handler = FolderEventHandler(mock_pipeline)
+
+    # 1. Created temporary file
+    handler.on_created(FileCreatedEvent("C:/test/~$Report.docx"))
+    mock_pipeline.process_file.assert_not_called()
+
+    # 2. Modified temporary file
+    handler.on_modified(FileModifiedEvent("C:/test/draft.tmp"))
+    mock_pipeline.process_file.assert_not_called()
+
+    # 3. Deleted temporary file
+    handler.on_deleted(FileDeletedEvent("C:/test/~$Report.docx"))
+    mock_pipeline.remove_file.assert_not_called()
+
+    # 4. Moved temporary file to temporary file
+    handler.on_moved(FileMovedEvent("C:/test/~WRL01.tmp", "C:/test/~WRL02.tmp"))
+    mock_pipeline.process_file.assert_not_called()
+    mock_pipeline.remove_file.assert_not_called()
+
