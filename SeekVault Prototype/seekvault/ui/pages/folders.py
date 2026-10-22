@@ -9,8 +9,33 @@ def render_folders_page(repo: Repository, pipeline: IngestionPipeline, watcher: 
     st.header("📁 Authorized Folders Management")
     st.markdown("Control exactly which directories SeekVault is permitted to access, index, and monitor.")
 
-    # Quick Setup Helper for College Demonstration
-    with st.expander("⚡ Quick Setup for Demo (Click to add sample folders)", expanded=True):
+    # Add Custom Folder Section
+    st.subheader("Add New Folder")
+    with st.form("add_folder_form"):
+        col_in, col_rec, col_btn = st.columns([3, 1, 1])
+        with col_in:
+            folder_input = st.text_input("Folder Path:", placeholder=r"e.g. D:\Documents\Projects or C:\Work\Notes")
+        with col_rec:
+            is_recursive = st.checkbox("Recursive", value=True)
+        with col_btn:
+            submitted = st.form_submit_button("Authorize Folder")
+
+        if submitted and folder_input.strip():
+            clean_path = os.path.normpath(folder_input.strip())
+            if not os.path.exists(clean_path):
+                st.error(f"Error: Path does not exist on disk: {clean_path}")
+            elif not os.path.isdir(clean_path):
+                st.error(f"Error: Path is not a directory: {clean_path}")
+            else:
+                repo.add_authorized_folder(clean_path, is_recursive=is_recursive)
+                with st.spinner(f"Ingesting files from {clean_path}..."):
+                    count = pipeline.scan_folder(clean_path, is_recursive=is_recursive)
+                watcher.sync_watches()
+                st.success(f"Authorized folder successfully! Ingested {count} files.")
+                st.rerun()
+
+    # Optional Testing & Development Tools Expander
+    with st.expander("🧪 Developer & Testing Tools (Sample Test Datasets)", expanded=False):
         st.markdown("Quickly load curated test datasets included with the SeekVault prototype:")
         base_sample = Path(__file__).resolve().parent.parent.parent.parent / "sample_data"
 
@@ -53,37 +78,12 @@ def render_folders_page(repo: Repository, pipeline: IngestionPipeline, watcher: 
 
     st.markdown("---")
 
-    # Add Custom Folder Section
-    st.subheader("Add New Folder")
-    with st.form("add_folder_form"):
-        col_in, col_rec, col_btn = st.columns([3, 1, 1])
-        with col_in:
-            folder_input = st.text_input("Folder Path:", placeholder="e.g. C:\\Users\\hp\\Documents\\Notes")
-        with col_rec:
-            is_recursive = st.checkbox("Recursive", value=True)
-        with col_btn:
-            submitted = st.form_submit_button("Authorize Folder")
-
-        if submitted and folder_input.strip():
-            clean_path = os.path.normpath(folder_input.strip())
-            if not os.path.exists(clean_path):
-                st.error(f"Error: Path does not exist on disk: {clean_path}")
-            elif not os.path.isdir(clean_path):
-                st.error(f"Error: Path is not a directory: {clean_path}")
-            else:
-                repo.add_authorized_folder(clean_path, is_recursive=is_recursive)
-                with st.spinner(f"Ingesting files from {clean_path}..."):
-                    count = pipeline.scan_folder(clean_path, is_recursive=is_recursive)
-                watcher.sync_watches()
-                st.success(f"Authorized folder successfully! Ingested {count} files.")
-                st.rerun()
-
     # List of Authorized Folders
     st.subheader("Authorized Locations")
     folders = repo.get_authorized_folders()
 
     if not folders:
-        st.info("No authorized folders yet. Use the buttons above or enter a folder path to get started.")
+        st.info("👋 **No authorized folders configured.** SeekVault operates strictly within boundaries you define. Enter a directory path above to authorize and index your first folder.")
     else:
         for f in folders:
             with st.container():

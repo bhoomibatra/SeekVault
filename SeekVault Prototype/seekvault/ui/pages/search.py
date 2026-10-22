@@ -14,6 +14,13 @@ def render_search_page(search_engine: SearchEngine):
     st.header("🔍 Multimodal Semantic Search")
     st.markdown("Search across local documents and images using natural language queries.")
 
+    stats = search_engine.repository.get_dashboard_stats()
+    if stats["total_files"] == 0:
+        st.info(
+            "📂 **No files are currently indexed.** To use semantic search, please authorize a folder containing documents or images in the **📁 Authorized Folders** tab."
+        )
+        return
+
     # Search Bar
     query = st.text_input(
         "Enter natural language query:",

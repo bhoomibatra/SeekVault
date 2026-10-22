@@ -9,6 +9,21 @@ def render_dashboard(repo: Repository, watcher_status: dict):
 
     stats = repo.get_dashboard_stats()
 
+    # First-Run Onboarding Guide for Clean Empty States
+    if stats["active_folders"] == 0:
+        st.info("👋 **Welcome to SeekVault!** To start searching your documents, add your first authorized folder.")
+        with st.container():
+            st.markdown("""
+            ### 🚀 Getting Started in 3 Simple Steps:
+            1. **Authorize a Folder:** Go to **📁 Authorized Folders** in the sidebar and enter any folder path on your computer.
+            2. **Local Indexing:** SeekVault scans your files, classifies sensitive data (`FULL`, `REDACTED`, or `METADATA_ONLY`), and creates local search vectors.
+            3. **Semantic Search:** Navigate to **🔍 Semantic Search** and query your files in natural language—100% offline and private!
+            """)
+        st.markdown("---")
+    elif stats["total_files"] == 0:
+        st.warning("⚠️ **Authorized folders configured, but no files have been indexed yet.** Visit **📁 Authorized Folders** and click **Rescan** to index your documents.")
+        st.markdown("---")
+
     # KPI Top Metric Row
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
