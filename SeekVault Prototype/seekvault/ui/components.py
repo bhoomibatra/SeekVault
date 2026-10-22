@@ -1,6 +1,52 @@
 import streamlit as st
+import os
+import sys
+import subprocess
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
+
+def open_file_in_os(file_path: str) -> Tuple[bool, str]:
+    """Launch the file using its default registered application."""
+    if not file_path or not os.path.exists(file_path):
+        return False, f"File does not exist on disk: {file_path}"
+
+    try:
+        if sys.platform == "win32":
+            os.startfile(file_path)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", file_path])
+        else:
+            subprocess.Popen(["xdg-open", file_path])
+        return True, "File opened successfully."
+    except Exception as e:
+        return False, f"Failed to open file: {e}"
+
+def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
+    """Open containing directory in file explorer with the file selected/highlighted."""
+    if not file_path:
+        return False, "Invalid file path."
+
+    norm_path = os.path.normpath(file_path)
+    parent_dir = os.path.dirname(norm_path)
+
+    try:
+        if sys.platform == "win32":
+            if os.path.exists(norm_path):
+                subprocess.Popen(["explorer", f"/select,{norm_path}"])
+            elif os.path.exists(parent_dir):
+                subprocess.Popen(["explorer", parent_dir])
+            else:
+                return False, f"Folder does not exist: {parent_dir}"
+        elif sys.platform == "darwin":
+            target = norm_path if os.path.exists(norm_path) else parent_dir
+            subprocess.Popen(["open", "-R", target])
+        else:
+            target = parent_dir if os.path.exists(parent_dir) else norm_path
+            subprocess.Popen(["xdg-open", target])
+        return True, "Folder opened successfully."
+    except Exception as e:
+        return False, f"Failed to open folder: {e}"
+
 
 def render_tier_badge(tier: str) -> str:
     """Return colored HTML badge for privacy tiers."""

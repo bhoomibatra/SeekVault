@@ -2,7 +2,13 @@ import streamlit as st
 import os
 from PIL import Image
 from seekvault.search.engine import SearchEngine
-from seekvault.ui.components import render_tier_badge, render_score_bar, format_file_size
+from seekvault.ui.components import (
+    render_tier_badge,
+    render_score_bar,
+    format_file_size,
+    open_file_in_os,
+    open_folder_in_os
+)
 
 def render_search_page(search_engine: SearchEngine):
     st.header("🔍 Multimodal Semantic Search")
@@ -71,6 +77,19 @@ def render_search_page(search_engine: SearchEngine):
                         if res.get("entities"):
                             ent_types = set(e["entity_type"] for e in res["entities"])
                             st.caption(f"🛡️ Detected PII Tokens: {', '.join(ent_types)}")
+
+                        # Native OS Shell Actions
+                        btn_c1, btn_c2, _ = st.columns([1, 1.3, 2])
+                        with btn_c1:
+                            if st.button("👁️ Open File", key=f"btn_open_file_{res['file_id']}_{idx}"):
+                                ok, msg = open_file_in_os(res["file_path"])
+                                if not ok:
+                                    st.warning(msg)
+                        with btn_c2:
+                            if st.button("📂 Open in Folder", key=f"btn_open_folder_{res['file_id']}_{idx}"):
+                                ok, msg = open_folder_in_os(res["file_path"])
+                                if not ok:
+                                    st.warning(msg)
 
                     with col_visual:
                         # If image, show thumbnail!

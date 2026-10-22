@@ -1,7 +1,12 @@
 import streamlit as st
 import pandas as pd
 from seekvault.database.repository import Repository
-from seekvault.ui.components import render_tier_badge, format_file_size
+from seekvault.ui.components import (
+    render_tier_badge,
+    format_file_size,
+    open_file_in_os,
+    open_folder_in_os
+)
 
 def render_indexed_files_page(repo: Repository):
     st.header("📄 Indexed Files Explorer")
@@ -56,6 +61,18 @@ def render_indexed_files_page(repo: Repository):
         with col_m2:
             st.markdown(f"**Last Modified:** `{sel_file['modified_at']}`")
             st.markdown(f"**File Size:** {format_file_size(sel_file['file_size'])}")
+
+        btn_c1, btn_c2, _ = st.columns([1, 1.3, 3])
+        with btn_c1:
+            if st.button("👁️ Open File", key=f"inspect_open_file_{sel_file['id']}"):
+                ok, msg = open_file_in_os(sel_file["file_path"])
+                if not ok:
+                    st.warning(msg)
+        with btn_c2:
+            if st.button("📂 Open in Folder", key=f"inspect_open_folder_{sel_file['id']}"):
+                ok, msg = open_folder_in_os(sel_file["file_path"])
+                if not ok:
+                    st.warning(msg)
 
         content = repo.get_file_content(sel_file["id"])
         if content:
