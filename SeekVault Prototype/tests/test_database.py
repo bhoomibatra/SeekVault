@@ -57,3 +57,60 @@ def test_file_upsert_and_privacy(repo):
     assert file_rec is not None
     assert file_rec["privacy_tier"] == "REDACTED"
     assert file_rec["file_name"] == "report.pdf"
+
+
+def test_prune_missing_files(repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        folder_id = repo.add_authorized_folder(str(root))
+
+        # Create two physical files
+        f1 = root / "keep.txt"
+        f1.write_text("keep this file")
+        f2 = root / "delete_me.txt"
+        f2.write_text("delete this file")
+
+        id1 = repo.upsert_file(
+            folder_id=folder_id,
+            file_path=str(f1),
+            file_name="keep.txt",
+            file_extension=".txt",
+            file_size=len("keep this file"),
+            file_hash="hash_keep",
+            file_type="DOCUMENT",
+            modified_at="2026-10-22 10:00:00"
+        )
+        id2 = repo.upsert_file(
+            folder_id=folder_id,
+            file_path=str(f2),
+            file_name="delete_me.txt",
+            file_extension=".txt",
+            file_size=len("delete this file"),
+            file_hash="hash_del",
+            file_type="DOCUMENT",
+            modified_at="2026-10-22 10:00:00"
+        )
+
+        assert repo.get_file_by_id(id1) is not None
+        assert repo.get_file_by_id(id2) is not None
+
+        # Physically delete f2 on disk
+        f2.unlink()
+        assert not f2.exists()
+
+        # Run prune_missing_files
+        purged = repo.prune_missing_files()
+        assert id2 in purged
+        assert id1 not in purged
+
+        # Verify f2 is gone from DB while f1 remains
+        assert repo.get_file_by_id(id2) is None
+        assert repo.get_file_by_id(id1) is not None
+
+        # Now deactivate the folder
+        repo.set_folder_active_state(folder_id, False)
+        # f1 is now unauthorized, so next prune should remove f1
+        purged_unauth = repo.prune_missing_files()
+        assert id1 in purged_unauth
+        assert repo.get_file_by_id(id1) is None
+

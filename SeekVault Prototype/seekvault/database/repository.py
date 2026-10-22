@@ -213,6 +213,28 @@ class Repository:
                 cursor.execute("SELECT * FROM files")
             return [dict(r) for r in cursor.fetchall()]
 
+    def prune_missing_files(self) -> List[int]:
+        """Scan SQLite file records and purge any whose physical file is missing from disk
+        or whose parent folder is no longer authorized. Returns list of purged file IDs."""
+        purged_ids: List[int] = []
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, file_path FROM files")
+            records = [dict(row) for row in cursor.fetchall()]
+
+        for r in records:
+            fid = r["id"]
+            fpath = r["file_path"]
+            if not os.path.exists(fpath) or not self.is_path_authorized(fpath):
+                with self._get_conn() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM files WHERE id = ?", (fid,))
+                    if cursor.rowcount > 0:
+                        purged_ids.append(fid)
+
+        return purged_ids
+
+
     # -------------------------------------------------------------
     # Content & Privacy Entities
     # -------------------------------------------------------------

@@ -258,3 +258,29 @@ class IngestionPipeline:
                     logger.warning(f"Cannot heal missing vector; file not found on disk: {file_path_str}")
 
         return healed_count
+
+    def reconcile_startup(self) -> Dict[str, int]:
+        """
+        Synchronize SQLite database and FAISS vector indices on startup:
+        1. Prune dead records from SQLite whose physical files no longer exist on disk
+           or whose folders are no longer authorized.
+        2. Remove corresponding orphaned vectors from FAISS text and image indices.
+        3. Heal any missing vectors for existing indexed files.
+
+        Returns:
+            Dict containing counts: {"purged_records": int, "healed_vectors": int}
+        """
+        purged_ids = self.repository.prune_missing_files()
+        for fid in purged_ids:
+            self.search_engine.text_index.remove_file(fid)
+            self.search_engine.image_index.remove_file(fid)
+
+        healed_count = self.reconcile_missing_vectors()
+        logger.info(
+            f"Startup reconciliation complete: {len(purged_ids)} dead records purged, {healed_count} missing vectors healed."
+        )
+        return {
+            "purged_records": len(purged_ids),
+            "healed_vectors": healed_count
+        }
+
