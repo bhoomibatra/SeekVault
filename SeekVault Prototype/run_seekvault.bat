@@ -10,10 +10,26 @@ echo.
 
 cd /d "%~dp0"
 
-:: 1. Check if python is available
-where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Python was not found in your PATH!
+:: 1. Detect Python executable (checks local/known virtualenvs first, then PATH)
+set "PYTHON_EXE="
+
+if exist "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\Scripts\python.exe" (
+    set "PYTHON_EXE=C:\Users\hp\OneDrive\Documents\Saanjh\python_env\Scripts\python.exe"
+) else if exist "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe" (
+    set "PYTHON_EXE=C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe"
+) else if exist "%~dp0venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
+) else if exist "%~dp0..\venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0..\venv\Scripts\python.exe"
+) else (
+    where python >nul 2>nul
+    if %ERRORLEVEL% equ 0 (
+        set "PYTHON_EXE=python"
+    )
+)
+
+if "%PYTHON_EXE%"=="" (
+    echo [ERROR] Python was not found in your PATH or virtual environment!
     echo Please install Python 3.10 or 3.11 from python.org and add it to PATH.
     echo.
     pause
@@ -21,13 +37,13 @@ if %ERRORLEVEL% neq 0 (
 )
 
 :: 2. Display Python version
-for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo [INFO] Using: %%i
+for /f "tokens=*" %%i in ('"%PYTHON_EXE%" --version 2^>^&1') do echo [INFO] Using Python: %%i
 
 :: 3. Launch Streamlit Application
 echo [INFO] Starting SeekVault local application...
 echo [INFO] Opening default browser at http://localhost:8501
 echo.
-python -m streamlit run app.py --server.port 8501 --browser.gatherUsageStats false
+"%PYTHON_EXE%" -m streamlit run app.py --server.port 8501 --browser.gatherUsageStats false
 
 if %ERRORLEVEL% neq 0 (
     echo.
