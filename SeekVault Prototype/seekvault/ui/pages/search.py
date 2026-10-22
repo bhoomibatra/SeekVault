@@ -24,7 +24,7 @@ def render_search_page(search_engine: SearchEngine):
     # Search Bar
     query = st.text_input(
         "Enter natural language query:",
-        placeholder="e.g., 'notes about candidate elimination', 'database normalization', 'red car near a building', 'screenshot with java error'",
+        placeholder="e.g., 'draft agreement with nondisclosure clause', 'quarterly electricity bill', 'red car parked outside', 'terminal error screenshot'",
         key="search_query_input"
     )
 
@@ -115,9 +115,10 @@ def render_search_page(search_engine: SearchEngine):
                     st.markdown("<hr style='margin: 10px 0; border: 0.5px solid #E5E7EB;'>", unsafe_allow_html=True)
     else:
         st.write("")
-        st.markdown("### 💡 Try these sample demonstration queries:")
+        st.markdown("### 💡 Example Search Queries:")
         q1, q2 = st.columns(2)
         with q1:
-            st.info("📄 **Document Queries:**\n- `notes about candidate elimination`\n- `database normalization`\n- `Java concurrency and exceptions`")
+            st.info("📄 **Document Queries:**\n- `draft agreement with nondisclosure clause`\n- `quarterly electricity or utility bill`\n- `database normalization and relational schema`")
         with q2:
-            st.info("🖼️ **Multimodal Image Queries:**\n- `red car near a building`\n- `screenshot containing Java error`\n- `photo of a classroom`")
+            st.info("🖼️ **Multimodal Visual Queries:**\n- `red car parked near a building`\n- `screenshot showing terminal connection error`\n- `outdoor photograph of a mountain hike`")
+

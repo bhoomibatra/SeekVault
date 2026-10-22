@@ -82,7 +82,7 @@ if watcher_status["is_running"]:
 else:
     st.sidebar.warning("🟡 Watchdog Idle")
 
-st.sidebar.caption("Idea Lab | Ramdeobaba University")
+st.sidebar.caption("SeekVault v1.0 • 100% Local & Private")
 
 # Page Routing
 from seekvault.ui.pages.dashboard import render_dashboard
