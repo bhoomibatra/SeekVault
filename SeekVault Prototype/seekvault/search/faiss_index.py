@@ -14,13 +14,26 @@ class FaissIndex:
         self.meta_path = meta_path
         self.index = faiss.IndexFlatIP(dimension)  # Inner Product on normalized vectors = Cosine Similarity
         self.vector_ids: List[int] = []  # Maps FAISS index row -> file_id
+        self._last_loaded_mtime: float = 0.0
         
         # Load from disk if files exist
         if self.index_path and self.meta_path and self.index_path.exists() and self.meta_path.exists():
             self.load()
 
+    def _check_and_reload(self) -> None:
+        """Reload index from disk if the on-disk index file was modified externally."""
+        if self.index_path and self.index_path.exists():
+            try:
+                mtime = self.index_path.stat().st_mtime
+                if mtime > self._last_loaded_mtime:
+                    logger.info("On-disk FAISS index updated. Hot-reloading into memory.")
+                    self.load()
+            except Exception as e:
+                logger.error(f"Error checking index mtime for reload: {e}")
+
     def has_file(self, file_id: int) -> bool:
         """Check whether at least one vector for the given file_id exists in the index."""
+        self._check_and_reload()
         return file_id in self.vector_ids
 
     def add_vector(self, file_id: int, vector: np.ndarray) -> int:
@@ -41,6 +54,7 @@ class FaissIndex:
 
     def search(self, query_vector: np.ndarray, top_k: int = 10) -> List[Tuple[int, float]]:
         """Search nearest vectors using cosine similarity. Returns list of (file_id, score)."""
+        self._check_and_reload()
         if self.index.ntotal == 0:
             return []
 
@@ -97,6 +111,8 @@ class FaissIndex:
             faiss.write_index(self.index, str(self.index_path))
             with open(self.meta_path, "w", encoding="utf-8") as f:
                 json.dump(self.vector_ids, f)
+            if self.index_path.exists():
+                self._last_loaded_mtime = self.index_path.stat().st_mtime
 
     def load(self) -> None:
         if self.index_path and self.meta_path and self.index_path.exists() and self.meta_path.exists():
@@ -104,7 +120,9 @@ class FaissIndex:
                 self.index = faiss.read_index(str(self.index_path))
                 with open(self.meta_path, "r", encoding="utf-8") as f:
                     self.vector_ids = json.load(f)
+                self._last_loaded_mtime = self.index_path.stat().st_mtime
                 logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors.")
             except Exception as e:
                 logger.error(f"Error loading FAISS index: {e}")
                 self.reset()
+

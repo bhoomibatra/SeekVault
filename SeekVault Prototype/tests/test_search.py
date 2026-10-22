@@ -124,3 +124,39 @@ def test_automatic_vector_integrity_healing(test_env):
     res2 = search_engine.search_text("database normalization")
     assert len(res2) > 0
     assert res2[0]["file_name"] == "dbms_lecture.txt"
+
+
+def test_faiss_index_hot_reloading(test_env):
+    import time
+    import numpy as np
+    from seekvault.search.faiss_index import FaissIndex
+
+    repo, search_engine, pipeline, auth_dir = test_env
+
+    # 1. Start with known vector count
+    initial_count = search_engine.text_index.index.ntotal
+    assert initial_count > 0
+
+    # 2. Simulate background process adding a vector to disk directly
+    bg_index = FaissIndex(
+        dimension=search_engine.text_index.dimension,
+        index_path=search_engine.text_index.index_path,
+        meta_path=search_engine.text_index.meta_path,
+    )
+    time.sleep(0.05)  # Ensure distinct mtime timestamp
+    dummy_vec = np.random.randn(search_engine.text_index.dimension).astype(np.float32)
+    new_fake_id = 99999
+    bg_index.add_vector(new_fake_id, dummy_vec)
+
+    # 3. Verify search_engine.text_index has older mtime before reload
+    assert search_engine.text_index._last_loaded_mtime < bg_index.index_path.stat().st_mtime
+
+    # 4. Calling has_file triggers hot-reload transparently
+    assert search_engine.text_index.has_file(new_fake_id) is True
+    assert search_engine.text_index.index.ntotal == initial_count + 1
+
+    # 5. Search executes on fresh index
+    hits = search_engine.text_index.search(dummy_vec, top_k=1)
+    assert len(hits) > 0
+    assert hits[0][0] == new_fake_id
+
