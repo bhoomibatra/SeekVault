@@ -651,6 +651,18 @@ class Repository:
                 cursor.execute("DELETE FROM vector_mappings WHERE file_id = ?", (file_id,))
             return cursor.rowcount
 
+    def reset_all_search_indices(self) -> int:
+        """Purge all vector mappings and set all files' status to 'PENDING'.
+
+        Leaves authorized_folders and original files intact. Prevents index drift.
+        Returns count of affected files.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM vector_mappings")
+            cursor.execute("UPDATE files SET status = 'PENDING'")
+            return cursor.rowcount
+
     def save_vector_mapping(self, file_id: int, modality: str, faiss_vector_id: int, vector_dim: int) -> int:
         with self._get_conn() as conn:
             cursor = conn.cursor()
