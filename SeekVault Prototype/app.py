@@ -57,11 +57,16 @@ watcher = st.session_state.watcher
 st.sidebar.markdown(
     """
     <div style="padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid #E6E2D8;">
-        <div style="font-size: 1.25rem; font-weight: 700; letter-spacing: -0.4px; color: #15181E;">
-            SeekVault
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                SeekVault
+            </span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: linear-gradient(135deg, #EFF6FF, #F5F3FF); color: #4F46E5; border: 1px solid #C7D2FE; padding: 2px 7px; border-radius: 12px;">
+                LOCAL v1.0
+            </span>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #828A98; margin-top: 2px;">
-            LOCAL ENGINE v1.0 • PRIVACY FIRST
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #828A98; margin-top: 4px;">
+            ZERO-CLOUD PRIVATE INTELLIGENCE
         </div>
     </div>
     """,
