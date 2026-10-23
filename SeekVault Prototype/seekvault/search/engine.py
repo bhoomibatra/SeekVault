@@ -49,14 +49,18 @@ class SearchEngine:
         content = self.repository.get_file_content(file_rec["id"])
         entities = self.repository.get_detected_entities_for_file(file_rec["id"])
 
-        preview = excerpt  # prefer FTS excerpt when available
-        if not preview and content:
-            if file_rec.get("privacy_tier") == "REDACTED":
+        tier = file_rec.get("privacy_tier", "FULL")
+        if tier == "METADATA_ONLY":
+            preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
+        elif excerpt:
+            preview = excerpt
+        elif content:
+            if tier == "REDACTED":
                 preview = content.get("redacted_preview") or content.get("searchable_text_preview", "")
-            elif file_rec.get("privacy_tier") == "METADATA_ONLY":
-                preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
             else:
                 preview = content.get("searchable_text_preview", "")
+        else:
+            preview = ""
 
         return {
             "file_id": file_rec["id"],
@@ -237,6 +241,9 @@ class SearchEngine:
             rec = file_recs.get(fid)
             if not rec:
                 continue
+            # Zero-trust query-time authorization check
+            if not AccessVerifier.is_file_accessible(rec, self.repository):
+                continue
             results.append(
                 self._enrich_result(
                     rec,
@@ -245,7 +252,7 @@ class SearchEngine:
                     relevance_label="Keyword",
                 )
             )
-        return results
+        return results[:top_k]
 
     def search_hybrid(
         self,
@@ -334,10 +341,16 @@ class SearchEngine:
 
         # ── 5. Build enriched result list ───────────────────────────────────
         results: List[Dict[str, Any]] = []
-        for fid in sorted_fids[:top_k]:
+        for fid in sorted_fids:
+            if len(results) >= top_k:
+                break
             file_rec = sem_file_recs.get(fid)
             if file_rec is None:
                 continue  # was filtered out by authorization
+
+            # Zero-trust query-time authorization check
+            if not AccessVerifier.is_file_accessible(file_rec, self.repository):
+                continue
 
             in_fts = fid in fts_ranked
             in_sem = fid in sem_ranked

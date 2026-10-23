@@ -61,38 +61,44 @@ SeekVault will automatically open in your default browser at `http://localhost:8
 
 ## 📖 Navigation & Operational Guide
 
+SeekVault features exactly 6 primary navigation sections:
+
 1. **🔍 Search (Default Landing Page)**:
    - Type queries in natural language or exact keywords.
    - Toggle between **Hybrid (RRF)**, **Semantic**, and **Keyword (FTS5)** modes.
    - Filter by authorized folder or file type (PDF, Word, Text, Images).
-   - View relevance badges (`Both`, `Semantic`, `Keyword`), masked snippets, copyable file paths, and launch files directly via **👁️ Open File** or **📂 Open Folder**.
-2. **📁 File Library**:
-   - Authorize directories for local indexing.
-   - Safely revoke folder permissions with an explicit confirmation dialog (leaving original source files completely untouched).
-   - View real-time indexing status for each file (`PENDING`, `INDEXED`, `FAILED`).
-3. **🛡️ Privacy Center**:
-   - Real-time offline mode verification (`HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`).
-   - Clear transparency panel on data storage boundaries (Original Files vs SQLite vs FAISS).
-   - De-identified PII entity audit table and category distribution.
-4. **👯 Duplicates & Versions**:
-   - SHA-256 duplicate clusters with calculated potential reclaimable storage space.
-   - Heuristic version suggestions with explicit non-destructive guarantees and one-click dismiss / restore controls.
-5. **🩺 System Health**:
+   - View relevance badges, masked snippets, copyable file paths, and launch files directly via **👁️ Open File** or **📂 Open Folder**.
+2. **📁 My Files**:
+   - Authorize local directories for background indexing.
+   - Instantly deauthorize or toggle folder permissions (leaving original source files completely untouched on disk).
+   - View real-time indexing inventory and status for each file (`PENDING`, `INDEXED`, `FAILED`).
+3. **📊 Indexing Status**:
    - Live telemetry on authorized folders, indexed files, and FAISS vector counts.
-   - Automated vector integrity diagnosis with non-destructive **Heal & Sync Vector Index** action.
+   - Watchdog filesystem monitoring daemon status and event queues.
+   - Extraction error log and database-vector consistency telemetry.
+4. **🛡️ Privacy**:
+   - Real-time offline mode verification (`HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`).
+   - Audit breakdown of detected sensitive entities (Aadhaar, PAN, emails, phone numbers) across privacy tiers (`FULL`, `REDACTED`, `METADATA_ONLY`).
+   - Strict zero raw PII guarantee: raw identity values are never saved to SQLite search indices or displayed in search snippets.
+5. **👥 Duplicates**:
+   - Exact SHA-256 duplicate clusters with calculated potential reclaimable storage space.
+   - Heuristic version progression chains with explicit user dismissal and restoration controls.
 6. **⚙️ Settings**:
    - Model status and diagnostic health inspection.
-   - Safe two-step index reset requiring explicit confirmation and re-syncing file states to `PENDING`.
-   - Complete data snapshot backup and restore.
+   - Complete single-archive zip backups of SQLite database and FAISS index state with atomic restore.
+   - Safe factory index reset requiring explicit two-step confirmation.
 
 ---
 
 ## 🧪 Testing & Verification
 
-SeekVault includes an automated test suite (86 tests across 17 modules), end-to-end operational verification, and a diagnostic benchmark runner:
+SeekVault includes an automated test suite (119 tests across 20 test modules), end-to-end operational verification, and a diagnostic benchmark runner:
 
 ```powershell
-# Run the complete test suite (86 tests)
+# Install development and test dependencies
+pip install -r requirements-dev.txt
+
+# Run the complete test suite (119 tests)
 pytest tests/ -v
 
 # Run dedicated security & boundary tests
@@ -101,7 +107,7 @@ pytest tests/test_security_boundaries.py -v
 # Run 8-point end-to-end operational verification
 python verify_e2e.py
 
-# Run diagnostic retrieval quality & latency benchmark
+# Run retrieval quality, privacy F1 & latency benchmark
 python evaluation/benchmark.py
 ```
 
@@ -111,33 +117,41 @@ python evaluation/benchmark.py
 
 ```
 SeekVault Prototype/
-├── app.py                             # Streamlit application entry point
+├── app.py                             # Streamlit application entry point (6 standard pages)
 ├── run_seekvault.bat                  # One-click Windows batch launcher
 ├── run_seekvault.ps1                  # One-click PowerShell launcher
-├── requirements.txt                   # Python package dependencies
-├── verify_e2e.py                      # End-to-end operational verification script
+├── download_models.py                 # Offline model pre-fetch utility
+├── requirements.txt                   # Production package dependencies (pinned)
+├── requirements-dev.txt               # Development & testing dependencies (pytest, etc.)
+├── verify_e2e.py                      # End-to-end operational verification script (isolated)
+├── run_demo.py                        # Automated demo initialization script
 ├── sample_data/                       # Curated sample datasets for testing
-├── evaluation/                        # Retrieval benchmark runner & dataset
-│   ├── benchmark.py                   # Benchmark execution tool (P@K, R@K, MRR, latency)
-│   ├── eval_dataset.py                # Ground-truth multi-modal query dataset
-│   └── BENCHMARK_REPORT.md            # Empirical performance & hardware report
+│   ├── authorized_academic/           # Academic notes (DBMS, Machine Learning)
+│   ├── authorized_personal/           # Sensitive documents (contains PII fixtures)
+│   ├── authorized_images/             # Image fixtures (classroom, car, code screenshot)
+│   ├── authorized_versions/           # Multi-version project drafts
+│   └── unauthorized_folder/           # Boundary test folder outside whitelist
+├── evaluation/                        # Retrieval & privacy benchmark runner
+│   ├── benchmark.py                   # Benchmark execution tool (P@K, R@K, MRR, latency, Presidio F1)
+│   ├── eval_dataset.py                # Ground-truth multi-modal and PII evaluation dataset
+│   └── BENCHMARK_REPORT.md            # Empirical performance, F1 scores & hardware report
 ├── seekvault/                         # Core Python package
 │   ├── config.py                      # Global parameters, paths, model configs
-│   ├── database/                      # SQLite schema, migrations, connection, repository, backup
+│   ├── database/                      # SQLite schema, connection, repository, backup
 │   ├── extraction/                    # PDF, DOCX, TXT, image & OCR extractors
-│   ├── privacy/                       # Presidio analyzer, regex patterns, classifier
+│   ├── privacy/                       # Presidio analyzer, regex patterns, classifier, sanitizer
 │   ├── embeddings/                    # Text (MiniLM) and image (CLIP) embedders, manager
 │   ├── search/                        # FAISS vector store, FTS5, hybrid search engine, verifier
 │   ├── monitoring/                    # Watchdog folder synchronization
 │   ├── organization/                  # SHA-256 duplicate & version detectors
 │   ├── ingestion/                     # Ingestion pipeline coordinator
-│   └── ui/                            # Streamlit Obsidian Slate page components
-└── tests/                             # 17 automated pytest test suites (86 tests)
+│   └── ui/                            # Streamlit page modules (Search, My Files, Indexing Status, Privacy, Duplicates, Settings)
+└── tests/                             # 20 automated pytest test suites (119 tests)
 ```
 
 ---
 
 ## 🛡️ Privacy & Security Guarantee
 
-All tokenization, privacy analysis, embedding inference, and vector indexing run **100% locally on your device**. SeekVault transmits **zero data, zero telemetry, and zero search terms** over the network.
+All tokenization, privacy analysis, embedding inference, and vector indexing run **100% locally on your device**. SeekVault transmits **zero data, zero telemetry, and zero search terms** over the network. Image privacy operates on **OCR-extracted text** through the Presidio and regex sanitization pipeline before index generation.
 

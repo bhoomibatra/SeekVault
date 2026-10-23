@@ -241,3 +241,64 @@ def test_image_ocr_privacy_classification(privacy_test_env):
     assert "jane.doe@idvault.org" not in row["searchable_text_preview"]
     assert "jane.doe@idvault.org" not in row["redacted_preview"]
     assert "<EMAIL_ADDRESS>" in row["redacted_preview"]
+
+
+def test_redacted_file_pii_never_appears_in_search_snippet_or_db(privacy_test_env):
+    """Verify that searching for a REDACTED file's raw PII values (email, Aadhaar)
+    yields no raw PII in search snippets, no FAISS-adjacent stored text, and no detected_entities row."""
+    pipeline = privacy_test_env["pipeline"]
+    repo = privacy_test_env["repo"]
+    engine = privacy_test_env["engine"]
+    auth_dir = privacy_test_env["auth_dir"]
+    db_path = privacy_test_env["db_path"]
+
+    raw_email = "student.applicant@university.edu.in"
+    raw_aadhaar = "9876 5432 1098"
+    raw_phone = "+91 9123456789"
+
+    doc = auth_dir / "Admission_Identity_Form.txt"
+    doc.write_text(
+        f"College Registration Record.\n"
+        f"Name: Test Candidate\n"
+        f"Email: {raw_email}\n"
+        f"Aadhaar Number: {raw_aadhaar}\n"
+        f"Mobile: {raw_phone}\n"
+        f"Enrolled for Computer Science program.",
+        encoding="utf-8"
+    )
+
+    res = pipeline.process_file(str(doc))
+    assert res is not None
+    assert res["privacy_tier"] == "REDACTED"
+    file_id = res["id"]
+
+    # 1. Check search snippets across hybrid and semantic search
+    search_results = engine.search_hybrid("College Registration Record Candidate", top_k=5)
+    matched = [r for r in search_results if r["file_id"] == file_id]
+    assert len(matched) > 0
+
+    result_preview = matched[0].get("preview", "")
+    assert raw_email not in result_preview, f"Raw email leaked in search preview: {result_preview}"
+    assert raw_aadhaar not in result_preview, f"Raw Aadhaar leaked in search preview: {result_preview}"
+    assert raw_phone not in result_preview, f"Raw phone leaked in search preview: {result_preview}"
+
+    # 2. Check SQLite file_content table
+    content = repo.get_file_content(file_id)
+    assert content is not None
+    assert raw_email not in content.get("searchable_text_preview", "")
+    assert raw_email not in content.get("redacted_preview", "")
+    assert raw_aadhaar not in content.get("searchable_text_preview", "")
+    assert raw_aadhaar not in content.get("redacted_preview", "")
+    assert raw_phone not in content.get("searchable_text_preview", "")
+    assert raw_phone not in content.get("redacted_preview", "")
+
+    # 3. Check SQLite detected_entities table: must only store masked tokens e.g. <EMAIL_ADDRESS_REDACTED_...>
+    entities = repo.get_detected_entities_for_file(file_id)
+    assert len(entities) >= 3
+    for ent in entities:
+        token = ent.get("entity_token", "")
+        assert raw_email not in token, f"Raw email found in entity_token: {token}"
+        assert raw_aadhaar not in token, f"Raw Aadhaar found in entity_token: {token}"
+        assert raw_phone not in token, f"Raw phone found in entity_token: {token}"
+        assert token.startswith("<") and token.endswith(">")
+

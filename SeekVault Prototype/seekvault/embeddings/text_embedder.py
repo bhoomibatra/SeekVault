@@ -17,7 +17,7 @@ class ModelUnavailableError(RuntimeError):
             f"Details: {original_error}\n"
             f"Cache Location: {cache_dir}\n"
             f"Offline Mode: HF_HUB_OFFLINE={os.environ.get('HF_HUB_OFFLINE', '0')}.\n"
-            f"Remedy: Verify local model weights exist in cache or run online initialization."
+            f"Remedy: Run 'python download_models.py' while online to download and cache required models."
         )
         super().__init__(msg)
         self.model_name = model_name

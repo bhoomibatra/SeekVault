@@ -8,6 +8,9 @@ __pycache__/
 
 # Local database storage & runtime FAISS vector indices
 **/data_storage/
+**/data_storage_backup/
+**/scratch_clean_test_data/
+**/scratch_e2e_test_data/
 *.db
 *.sqlite3
 *.faiss

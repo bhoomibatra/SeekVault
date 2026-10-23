@@ -308,3 +308,104 @@ def test_folder_revocation_cascades_and_suppresses_results(repo):
         results_after = AccessVerifier.filter_results(candidates, repo)
         assert len(results_after) == 0, "Revoked folder results must be suppressed"
 
+
+def test_trailing_separators_and_parent_traversal_containment(repo):
+    """Verify trailing separators and dot-dot parent traversals are handled securely."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        vault_dir = base / "secure_vault"
+        vault_dir.mkdir()
+        outside_dir = base / "outside_dir"
+        outside_dir.mkdir()
+
+        # Add with trailing slash
+        trailing_path = str(vault_dir) + os.sep
+        repo.add_authorized_folder(trailing_path, is_recursive=True)
+
+        valid_doc = vault_dir / "valid.txt"
+        valid_doc.write_text("Valid content")
+
+        # 1. Trailing separator on authorized folder still authorizes inner files
+        assert repo.is_path_authorized(str(valid_doc)) is True
+
+        # 2. File path with redundant slashes/dots still resolves correctly
+        redundant_path = str(vault_dir) + os.sep + "." + os.sep + "valid.txt"
+        assert repo.is_path_authorized(redundant_path) is True
+
+        # 3. Path traversal attempting to escape vault must be blocked
+        traversal_attack = str(vault_dir) + os.sep + ".." + os.sep + "outside_dir" + os.sep + "leak.txt"
+        assert repo.is_path_authorized(traversal_attack) is False
+
+
+def test_different_drive_letters_containment(repo):
+    """Verify different drive letters on Windows or roots on POSIX are strictly rejected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        auth_dir = Path(tmpdir) / "vault"
+        auth_dir.mkdir()
+        repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+
+        # On Windows, try alternate drive letter X:
+        if os.name == "nt":
+            alt_drive_path = r"X:\fake_drive\secret.txt"
+            assert repo.is_path_authorized(alt_drive_path) is False
+        else:
+            alt_root_path = "/var/secret/file.txt"
+            assert repo.is_path_authorized(alt_root_path) is False
+
+
+def test_search_engine_all_modes_query_time_suppression():
+    """Verify SearchEngine filters revoked and deleted files across text, keyword, and hybrid paths."""
+    from seekvault.search.engine import SearchEngine
+    from seekvault.ingestion.pipeline import IngestionPipeline
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        db_file = root / "multimode_sec.db"
+        with get_db_connection(db_file) as conn:
+            init_db(conn)
+
+        repo = Repository(db_path=db_file)
+        search_engine = SearchEngine(
+            repository=repo,
+            text_index_path=root / "t_sec.faiss",
+            text_meta_path=root / "t_sec.json",
+            image_index_path=root / "i_sec.faiss",
+            image_meta_path=root / "i_sec.json",
+        )
+        pipeline = IngestionPipeline(repository=repo, search_engine=search_engine)
+
+        auth_dir = root / "active_auth"
+        auth_dir.mkdir()
+        fid = repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+
+        doc = auth_dir / "Cyber_Defense_Strategy.txt"
+        doc.write_text("Cyber defense protocol and automated firewall intrusion response.", encoding="utf-8")
+        pipeline.process_file(str(doc))
+
+        # 1. Discoverable in semantic, keyword, and hybrid modes
+        res_sem = search_engine.search_text("firewall intrusion response", top_k=5)
+        res_kw = search_engine.search_keyword("firewall intrusion", top_k=5)
+        res_hyb = search_engine.search_hybrid("firewall intrusion response", top_k=5)
+
+        assert any(r["file_name"] == "Cyber_Defense_Strategy.txt" for r in res_sem)
+        assert any(r["file_name"] == "Cyber_Defense_Strategy.txt" for r in res_kw)
+        assert any(r["file_name"] == "Cyber_Defense_Strategy.txt" for r in res_hyb)
+
+        # 2. Deactivate folder: all modes must immediately suppress
+        repo.set_folder_active_state(fid, False)
+        assert len(search_engine.search_text("firewall intrusion response", top_k=5)) == 0
+        assert len(search_engine.search_keyword("firewall intrusion", top_k=5)) == 0
+        assert len(search_engine.search_hybrid("firewall intrusion response", top_k=5)) == 0
+
+        # 3. Reactivate folder: discoverable again
+        repo.set_folder_active_state(fid, True)
+        assert len(search_engine.search_text("firewall intrusion response", top_k=5)) > 0
+        assert len(search_engine.search_keyword("firewall intrusion", top_k=5)) > 0
+        assert len(search_engine.search_hybrid("firewall intrusion response", top_k=5)) > 0
+
+        # 4. Physical deletion: delete from disk, assert suppressed across all modes
+        doc.unlink()
+        assert len(search_engine.search_text("firewall intrusion response", top_k=5)) == 0
+        assert len(search_engine.search_keyword("firewall intrusion", top_k=5)) == 0
+        assert len(search_engine.search_hybrid("firewall intrusion response", top_k=5)) == 0
+

@@ -40,17 +40,20 @@ SeekVault solves this by providing:
 Open a terminal in the project directory and run:
 
 ```powershell
-# Direct launch using the installed virtual environment
-& "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe" -m streamlit run app.py --server.port 8502
+# Quick launch using the standard runner
+.\run_seekvault.bat
+
+# Or direct launch using Python
+python -m streamlit run app.py --server.port 8501
 ```
 
 Or run the all-in-one demo launcher:
 ```powershell
-& "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe" run_demo.py
+python run_demo.py
 ```
 
 Open your browser to:
-👉 **`http://localhost:8502`**
+👉 **`http://localhost:8501`**
 
 ---
 
@@ -60,18 +63,18 @@ Follow this sequential walkthrough during evaluations or project demonstrations.
 
 ```mermaid
 flowchart LR
-    A["1. Dashboard"] --> B["2. Authorized Folders"]
-    B --> C["3. Semantic Search"]
-    C --> D["4. Privacy Center"]
-    D --> E["5. Duplicates & Versions"]
+    A["1. Indexing Status (Telemetry)"] --> B["2. My Files (Authorization)"]
+    B --> C["3. Search (Multimodal)"]
+    C --> D["4. Privacy (PII Protection)"]
+    D --> E["5. Duplicates (Optimization)"]
     E --> F["6. Query-Time Security"]
-    F --> G["7. Continuous Watchdog"]
+    F --> G["7. Live Watchdog Drop"]
 ```
 
 ---
 
-### Step 1: The Overview Dashboard (`📊 Dashboard`)
-* **Where to navigate:** Click **📊 Dashboard** in the left sidebar.
+### Step 1: System Telemetry & Health (`📊 Indexing Status`)
+* **Where to navigate:** Click **📊 Indexing Status** in the left sidebar.
 * **What you see:**
   * **Top Metrics**: Active Authorized Folders (`4`), Total Indexed Files (`12`), Documents (`9`), Images (`3`), Watchdog Status (`ACTIVE`).
   * **Privacy Tier Distribution Chart**: Real-time breakdown showing `FULL` (9 files), `REDACTED` (2 files), and `METADATA_ONLY` (1 file).
@@ -82,10 +85,10 @@ flowchart LR
 
 ---
 
-### Step 2: Folder Authorization Control (`📁 Authorized Folders`)
-* **Where to navigate:** Click **📁 Authorized Folders** in the left sidebar.
+### Step 2: Folder Authorization Control (`📁 My Files`)
+* **Where to navigate:** Click **📁 My Files** in the left sidebar.
 * **Demonstration Action:**
-  1. Show the four pre-loaded authorized test folders:
+  1. Show the four pre-loaded authorized test folders in the Authorized Folders table:
      * `sample_data/authorized_academic`
      * `sample_data/authorized_personal`
      * `sample_data/authorized_images`
@@ -97,8 +100,8 @@ flowchart LR
 
 ---
 
-### Step 3: Semantic Natural Language Search (`🔍 Semantic Search`)
-* **Where to navigate:** Click **🔍 Semantic Search** in the left sidebar.
+### Step 3: Natural Language Search (`🔍 Search`)
+* **Where to navigate:** Click **🔍 Search** in the left sidebar.
 
 #### Part A: Conceptual Document Search (No exact keywords needed!)
 1. Type into the search box:
@@ -150,31 +153,30 @@ Change the **Search Modality** dropdown to **Images Only** or leave as **All (Mu
 
 ---
 
-### Step 4: Privacy Detection & Sanitization Audit (`🛡️ Privacy Center`)
-* **Where to navigate:** Click **🛡️ Privacy Center** in the left sidebar.
+### Step 4: Privacy Detection & Sanitization Audit (`🛡️ Privacy`)
+* **Where to navigate:** Click **🛡️ Privacy** in the left sidebar.
 * **Demonstration Action:**
   1. Review the three defined privacy tiers:
      * **`FULL`**: Clean academic notes; 100% of text/image content embedded.
-     * **`REDACTED`**: Files containing personal sensitive information. Sensitive tokens are substituted with placeholders in index vectors.
+     * **`REDACTED`**: Files containing personal sensitive information. Sensitive tokens are substituted with placeholders in index vectors and search previews.
      * **`METADATA_ONLY`**: Sensitive secrets (passwords, private keys); no content embeddings stored.
   2. Inspect the **Detected Sensitive Entities** table:
-     * Shows detected tokens: Aadhaar Number (`4521 8963 1254`), Email addresses, PAN Card numbers (`ABCDE1234F`), and phone numbers.
-  3. Now navigate to **📄 Indexed Files** $\to$ Select `Student_Admission_Form.pdf` in the **Deep File Inspector**:
-     * Compare the **Original Extracted Text** against the **Searchable / Redacted Representation**:
-     * *Original:* `Contact Email: harsh.maske@ramdeobaba.edu | Mobile: +91 9876543210 | Aadhaar: 4521 8963 1254`
+     * Displays detected entity types: Aadhaar Number, Email addresses, PAN Card numbers, and phone numbers.
+  3. Now inspect the file inventory under **📁 My Files** $\to$ Select `Student_Admission_Form.pdf`:
+     * Verify the **Searchable / Redacted Representation** stored in the index:
      * *Redacted Representation:* `Contact Email: <EMAIL_ADDRESS> | Mobile: <PHONE_NUMBER> | Aadhaar: <AADHAAR_NUMBER>`
 * **Talking Point for Evaluators:**  
-  *"Notice our core design guarantee: the user's original file on disk is strictly untouched. Redaction happens exclusively in the mathematical vector index representation, ensuring sensitive identities are never leaked into vector databases."*
+  *"Notice our core design guarantee: the user's original file on disk is strictly untouched. Redaction happens exclusively in the mathematical vector index representation, ensuring sensitive identities are never leaked into vector databases or rendered in unmasked search previews."*
 
 ---
 
-### Step 5: Organization: Duplicates & Versions (`👯 Duplicates & Versions`)
-* **Where to navigate:** Click **👯 Duplicates & Versions** in the left sidebar.
+### Step 5: Organization: Duplicates & Versions (`👥 Duplicates`)
+* **Where to navigate:** Click **👥 Duplicates** in the left sidebar.
 
 #### Part A: Exact Hash Duplication (Tab 1)
 * **What you see:**
   * Shows Cluster #1 containing `ML_Unit3_Notes.pdf` and `ML_Unit3_Notes_Copy.pdf`.
-  * Identifies identical SHA-256 hashes (`3749e4a7bcc3...`).
+  * Identifies identical SHA-256 hashes.
   * Calculates potential reclaimable disk storage.
 
 #### Part B: Semantic Document Version History (Tab 2)
@@ -188,23 +190,23 @@ Change the **Search Modality** dropdown to **Images Only** or leave as **All (Mu
 
 ### Step 6: Zero-Trust Query-Time Access Verification
 This is one of the strongest security features to demonstrate to the evaluators:
-1. In **📁 Authorized Folders**, find `sample_data/authorized_personal` and switch the toggle to **Inactive**.
-2. Immediately go to **🔍 Semantic Search** and run:
+1. In **📁 My Files**, find `sample_data/authorized_personal` and switch the toggle to **Inactive**.
+2. Immediately go to **🔍 Search** and run:
    ```
-   Student admission form harsh maske
+   Student admission registration personal form
    ```
 3. **Result:**  
    The file is **NOT returned**!
-4. **Why this matters:** Even though the vector embedding was stored in FAISS, SeekVault's [`AccessVerifier`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/search/verifier.py) intercepts the raw candidates and validates that the file belongs to an *active* authorized folder before returning any results to the user.
-5. Re-enable the folder toggle, re-run the search, and the file instantly reappears.
+4. **Why this matters:** Even though the vector embedding was stored in FAISS, SeekVault's [`AccessVerifier`](seekvault/search/verifier.py) intercepts the raw candidates and validates that the file belongs to an *active* authorized folder before returning any results to the user.
+5. Re-enable the folder toggle in **📁 My Files**, re-run the search, and the file instantly reappears.
 
 ---
 
 ### Step 7: Continuous Monitoring (Watchdog in Action)
-1. Ensure the dashboard shows `⚡ Watchdog Monitor: ACTIVE`.
+1. Ensure the **📊 Indexing Status** page shows `⚡ Watchdog Monitor: ACTIVE`.
 2. Open File Explorer or a terminal, and copy any text file or image into `sample_data/authorized_academic/Live_Demo_Note.txt`.
 3. Within 1–2 seconds, Watchdog's debounced event handler intercepts the file creation, extracts text, computes privacy classification, and adds vectors to FAISS automatically.
-4. Without restarting the Streamlit app, search for the content of the new note in the search tab. It appears immediately.
+4. Without restarting the Streamlit app, search for the content of the new note in the **🔍 Search** tab. It appears immediately.
 
 ---
 
@@ -215,36 +217,20 @@ SeekVault includes an automated test suite verifying every component.
 ### Running Pytest
 Run from terminal:
 ```powershell
-& "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe" -m pytest tests -v
+python -m pytest tests/ -v
 ```
 
 **Results Summary:**
 ```
-tests/test_access_verification.py::test_query_time_access_verification PASSED
-tests/test_database.py::test_folder_authorization PASSED
-tests/test_database.py::test_file_upsert_and_privacy PASSED
-tests/test_embeddings.py::test_text_embedder PASSED
-tests/test_embeddings.py::test_semantic_similarity_ranking PASSED
-tests/test_extraction.py::test_plain_text_extraction PASSED
-tests/test_extraction.py::test_image_metadata_extraction PASSED
-tests/test_extraction.py::test_ocr_fallback PASSED
-tests/test_organization.py::test_duplicate_hashing_and_detection PASSED
-tests/test_organization.py::test_version_stem_extraction PASSED
-tests/test_privacy.py::test_detect_email_and_phone PASSED
-tests/test_privacy.py::test_detect_aadhaar_and_pan PASSED
-tests/test_privacy.py::test_sanitization_placeholders PASSED
-tests/test_privacy.py::test_classification_tiers PASSED
-tests/test_search.py::test_semantic_text_search PASSED
-
-============================= 15 passed in 16.59s =============================
+============================ 119 passed in 41.57s ============================
 ```
 
 ### Running the End-to-End Verification Script
 Run:
 ```powershell
-& "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe" verify_e2e.py
+python verify_e2e.py
 ```
-This script runs all 8 critical operational scenarios in a single execution and prints formatted validation outputs.
+This script runs all 8 critical operational scenarios in an isolated scratch environment and cleans up automatically.
 
 ---
 
@@ -252,17 +238,17 @@ This script runs all 8 critical operational scenarios in a single execution and 
 
 | Component | Library / Framework | Implementation Location |
 |---|---|---|
-| **Frontend UI** | Streamlit 1.64 | [`app.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/app.py), [`seekvault/ui/`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/ui) |
-| **Relational Storage** | SQLite 3 | [`seekvault/database/`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/database) |
-| **Vector Engine** | FAISS (`faiss-cpu`) | [`seekvault/search/faiss_index.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/search/faiss_index.py) |
-| **Text Embedder** | Sentence-Transformers (`all-MiniLM-L6-v2`) | [`seekvault/embeddings/text_embedder.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/embeddings/text_embedder.py) |
-| **Vision Embedder** | OpenAI CLIP (`clip-ViT-B-32`) | [`seekvault/embeddings/image_embedder.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/embeddings/image_embedder.py) |
-| **Document Parsers** | PyMuPDF (`fitz`), `python-docx` | [`seekvault/extraction/text_extractor.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/extraction/text_extractor.py) |
-| **Image & OCR** | Pillow, `pytesseract` | [`seekvault/extraction/image_extractor.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/extraction/image_extractor.py) |
-| **Privacy Detection**| Presidio Analyzer + Regex Patterns | [`seekvault/privacy/`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/privacy) |
-| **File Monitoring** | Watchdog | [`seekvault/monitoring/`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/monitoring) |
-| **Deduplication** | SHA-256 Hashing | [`seekvault/organization/duplicate_detector.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/organization/duplicate_detector.py) |
-| **Versioning** | Stemming + Cosine Similarity | [`seekvault/organization/version_detector.py`](file:///c:/Users/hp/OneDrive/Documents/SeekVault%20Prototype/seekvault/organization/version_detector.py) |
+| **Frontend UI** | Streamlit 1.64 | [`app.py`](app.py), [`seekvault/ui/`](seekvault/ui/) |
+| **Relational Storage** | SQLite 3 | [`seekvault/database/`](seekvault/database/) |
+| **Vector Engine** | FAISS (`faiss-cpu`) | [`seekvault/search/faiss_index.py`](seekvault/search/faiss_index.py) |
+| **Text Embedder** | Sentence-Transformers (`all-MiniLM-L6-v2`) | [`seekvault/embeddings/text_embedder.py`](seekvault/embeddings/text_embedder.py) |
+| **Vision Embedder** | OpenAI CLIP (`clip-ViT-B-32`) | [`seekvault/embeddings/image_embedder.py`](seekvault/embeddings/image_embedder.py) |
+| **Document Parsers** | PyMuPDF (`fitz`), `python-docx` | [`seekvault/extraction/text_extractor.py`](seekvault/extraction/text_extractor.py) |
+| **Image & OCR** | Pillow, `pytesseract` | [`seekvault/extraction/image_extractor.py`](seekvault/extraction/image_extractor.py) |
+| **Privacy Detection**| Presidio Analyzer + Regex Patterns | [`seekvault/privacy/`](seekvault/privacy/) |
+| **File Monitoring** | Watchdog | [`seekvault/monitoring/`](seekvault/monitoring/) |
+| **Deduplication** | SHA-256 Hashing | [`seekvault/organization/duplicate_detector.py`](seekvault/organization/duplicate_detector.py) |
+| **Versioning** | Stemming + Cosine Similarity | [`seekvault/organization/version_detector.py`](seekvault/organization/version_detector.py) |
 
 ---
 

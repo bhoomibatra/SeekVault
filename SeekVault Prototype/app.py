@@ -31,27 +31,32 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 
-# Initialize Session State Singletons
-if "repo" not in st.session_state:
-    st.session_state.repo = Repository()
+# Process-level Singleton Services (shared across all tabs & sessions)
+@st.cache_resource
+def get_seekvault_services():
+    """Create and cache SeekVault core services once per Python process.
 
-if "search_engine" not in st.session_state:
-    st.session_state.search_engine = SearchEngine(repository=st.session_state.repo)
-
-if "pipeline" not in st.session_state:
-    st.session_state.pipeline = IngestionPipeline(
-        repository=st.session_state.repo,
-        search_engine=st.session_state.search_engine
+    This ensures that live file additions handled by WatcherManager immediately
+    reflect in the SearchEngine FAISS indices across all browser sessions,
+    tabs, and page refreshes.
+    """
+    repo = Repository()
+    search_engine = SearchEngine(repository=repo)
+    pipeline = IngestionPipeline(
+        repository=repo,
+        search_engine=search_engine
     )
+    watcher = WatcherManager.get_instance(pipeline)
+    watcher.start()
+    return repo, search_engine, pipeline, watcher
 
-if "watcher" not in st.session_state:
-    st.session_state.watcher = WatcherManager.get_instance(st.session_state.pipeline)
-    st.session_state.watcher.start()
+repo, search_engine, pipeline, watcher = get_seekvault_services()
 
-repo = st.session_state.repo
-search_engine = st.session_state.search_engine
-pipeline = st.session_state.pipeline
-watcher = st.session_state.watcher
+# Synchronize references into session state for page callbacks
+st.session_state.repo = repo
+st.session_state.search_engine = search_engine
+st.session_state.pipeline = pipeline
+st.session_state.watcher = watcher
 
 # Sidebar Navigation
 st.sidebar.markdown(

@@ -50,6 +50,10 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # 5. Install SeekVault dependencies
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # for running pytest & benchmarks
+
+# 6. Pre-fetch offline model weights (for first-time offline setup)
+python download_models.py
 ```
 
 ---
@@ -72,7 +76,7 @@ pip install -r requirements.txt
 The browser will automatically open to `http://localhost:8501`.
 
 ### 3.2 Run Diagnostics, Unit Tests & Verification
-Run the complete automated regression and security test suite (86 tests):
+Run the complete automated regression and security test suite (119 tests):
 ```powershell
 cd "SeekVault Prototype"
 python -m pytest tests/ -v

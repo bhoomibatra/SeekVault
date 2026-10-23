@@ -53,13 +53,12 @@ SeekVault Prototype/
 │       ├── __init__.py
 │       ├── components.py            # Reusable UI widgets, badges, cards, metrics
 │       └── pages/
-│           ├── dashboard.py         # Telemetry, counts, privacy overview, monitoring status
 │           ├── search.py            # Cross-modal search with preview, filters, and scores
-│           ├── folders.py           # Authorized folders manager
-│           ├── indexed_files.py     # Data table of all indexed files
-│           ├── privacy_center.py    # PII breakdown, redaction audit logs, sensitivity tiers
-│           ├── duplicates_versions.py# Duplicate clusters and document version trees
-│           └── settings.py          # Model selection, OCR settings, re-index controls
+│           ├── file_library.py      # My Files: Authorized folders & indexed file inventory
+│           ├── system_health.py     # Indexing Status: telemetry, health, watchdog status
+│           ├── privacy_center.py    # Privacy: tier breakdown, PII audit, zero raw PII view
+│           ├── duplicates_versions.py # Duplicates: duplicate clusters and version trees
+│           └── settings.py          # Settings: model paths, offline verification, maintenance
 ├── sample_data/                     # Curated realistic test files for college demo
 │   ├── authorized_academic/         # Standard academic notes (Machine Learning, DBMS)
 │   ├── authorized_personal/         # Sensitive documents (contains phone, email, Aadhaar)
@@ -134,7 +133,7 @@ Here is exactly how every requested feature will be demonstrated during a live e
 
 ### Feature 7: Continuous Monitoring (Watchdog)
 * **Demonstration Mechanism**:
-  * The **Dashboard** shows an active green badge: `"Watchdog: Active"`.
+  * The **Indexing Status** page shows an active green badge: `"Watchdog: Active"`.
   * During the live demo, a new file `Live_Demo_Notes.txt` is copied into `authorized_academic/`.
   * Within 1-2 seconds, Watchdog detects the event, debounces, processes the file, updates SQLite, and adds it to the FAISS index automatically.
   * Search immediately finds the new file without restarting the app.
@@ -143,7 +142,7 @@ Here is exactly how every requested feature will be demonstrated during a live e
 ### Feature 8: Query-Time Access Verification
 * **Demonstration Mechanism**:
   * Suppose `Personal_Doc.pdf` was indexed while `sample_data/authorized_personal` was authorized.
-  * The user goes to **Authorized Folders** and removes/unauthorizes `sample_data/authorized_personal`.
+  * The user goes to **My Files** and deauthorizes/toggles `sample_data/authorized_personal`.
   * The user immediately runs a search query that would have matched `Personal_Doc.pdf`.
   * **Result**: `Personal_Doc.pdf` is strictly **NOT** returned!
   * The query verifier confirms that even though the vector may technically linger in FAISS, zero-trust verification suppresses any file whose current folder is unauthorized or whose file was deleted.
@@ -151,7 +150,7 @@ Here is exactly how every requested feature will be demonstrated during a live e
 ### Feature 9: Exact Duplicate Detection
 * **Demonstration Mechanism**:
   * Two identical files with different filenames (e.g., `ML_Unit3.pdf` and `ML_Copy_Final.pdf`) are in authorized folders.
-  * The SHA-256 hash engine groups them in the **Duplicates & Versions** tab:
+  * The SHA-256 hash engine groups them in the **Duplicates** tab:
     * Displays duplicate clusters, individual paths, and redundant disk storage footprint.
 
 ### Feature 10: Document Version Detection
@@ -163,18 +162,17 @@ Here is exactly how every requested feature will be demonstrated during a live e
 ### Feature 11: SQLite Database
 * **Demonstration Mechanism**:
   * All authorized folders, files, hashes, privacy classifications, indexing status, detected entities, and FAISS vector mappings are cleanly organized in a local `seekvault.db` file.
-  * Can be inspected directly or viewed via the **Indexed Files** tab.
+  * Can be inspected directly or viewed via the **My Files** tab.
 
 ### Feature 12: Streamlit User Interface
 * **Demonstration Mechanism**:
-  * Clean, polished sidebar navigation across 7 dedicated views:
-    * 📊 **Dashboard**: KPI stat cards, charts, monitoring pill.
+  * Clean, polished sidebar navigation across 6 dedicated views:
     * 🔍 **Search**: Unified search bar, modality filters (All / Documents / Images), privacy filter, result cards with score bars and previews.
-    * 📁 **Authorized Folders**: Folder paths, recursive flags, add/delete controls.
-    * 📄 **Indexed Files**: Searchable table with file metadata and status.
-    * 🛡️ **Privacy Center**: Visual pie chart of privacy tiers, table of detected PII per file.
-    * 📑 **Duplicates & Versions**: Grouped expandable cards for duplicates and version chains.
-    * ⚙️ **Settings**: Model paths, OCR toggles, indexing rebuild options.
+    * 📁 **My Files**: Folder authorization manager, recursive flags, add/delete controls, safe file inventory.
+    * 📊 **Indexing Status**: System health telemetry, KPI stat cards, background watchdog activity pill.
+    * 🛡️ **Privacy**: Visual breakdown of privacy tiers, table of detected PII per file, zero raw PII display.
+    * 👥 **Duplicates**: Grouped expandable cards for duplicates and version chains.
+    * ⚙️ **Settings**: Model paths, offline verification, backup and factory reset controls.
 
 ---
 
@@ -216,7 +214,7 @@ Here is exactly how every requested feature will be demonstrated during a live e
 
 8. **Step 8: Streamlit Frontend**
    * Implement `seekvault/ui/components.py` for UI styling, badges, and cards.
-   * Implement pages: Dashboard, Search, Authorized Folders, Indexed Files, Privacy Center, Duplicates & Versions, Settings.
+   * Implement pages: Search, My Files, Indexing Status, Privacy, Duplicates, Settings.
    * Implement root `app.py`.
 
 9. **Step 9: Sample Data & Comprehensive Automated Test Suite**

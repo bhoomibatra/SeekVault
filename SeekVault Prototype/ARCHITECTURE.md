@@ -21,13 +21,12 @@ SeekVault solves this dichotomy through:
 ```mermaid
 flowchart TB
     subgraph UI ["Frontend Layer (Streamlit)"]
-        DASH["Dashboard & Metrics"]
-        SEARCH["Multimodal Search View"]
-        AUTH_UI["Folder Authorization"]
-        FILES_UI["Indexed Files Explorer"]
-        PRIV_UI["Privacy Center"]
-        DUP_UI["Duplicates & Versions View"]
-        SETT["Settings & Model Config"]
+        SEARCH["Search (Hybrid & Multimodal)"]
+        FILES_UI["My Files (Folders & Indexed Files)"]
+        STATUS_UI["Indexing Status (System Health)"]
+        PRIV_UI["Privacy (Privacy Center)"]
+        DUP_UI["Duplicates (Duplicates & Versions)"]
+        SETT["Settings (Configuration & Maintenance)"]
     end
 
     subgraph INGESTION ["Ingestion & Pipeline Orchestration"]
@@ -144,13 +143,12 @@ flowchart TB
 
 ### 3.8. Streamlit User Interface (`seekvault/ui`)
 * Multi-page modular UI with clear visual hierarchy:
-  1. **Dashboard**: High-level telemetry, file count distribution, privacy tier gauge, indexing progress, watchdog status.
-  2. **Search**: Natural language query input, multimodal search toggle (Text / Image / All), similarity score threshold slider, privacy badges, dynamic snippet preview with highlighted matches, image thumbnails.
-  3. **Authorized Folders**: Path selector, recursive toggle, folder removal, one-click manual re-index.
-  4. **Indexed Files**: Paginated search/filter table of all known files with privacy status and hashes.
-  5. **Privacy Center**: Audit logs of all detected PII, entity breakdown charts, inspection of redacted search representations.
-  6. **Duplicates & Versions**: Visual clusters of duplicate files with reclaimable space counters, version timelines.
-  7. **Settings**: Model selections, OCR configuration, privacy threshold parameters.
+  1. **Search**: Natural language query input, multimodal search toggle (Text / Image / All), similarity score threshold slider, privacy badges, dynamic snippet preview with highlighted matches, image thumbnails.
+  2. **My Files**: Folder authorization manager, recursive discovery toggle, folder deauthorization/removal, safe indexed file inventory.
+  3. **Indexing Status**: System health telemetry, background watchdog activity pill, file processing metrics, database and vector consistency indicators.
+  4. **Privacy**: Privacy tier breakdown (FULL, REDACTED, METADATA_ONLY), entity category audit table, zero raw PII guarantee with sanitized representation previews.
+  5. **Duplicates**: Visual clusters of duplicate files with reclaimable space counters, heuristic version progression chains.
+  6. **Settings**: Model selections, offline verification, backup and factory reset controls.
 
 ---
 

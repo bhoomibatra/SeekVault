@@ -54,7 +54,7 @@ To shut down SeekVault:
 
 ## 5. Verification & Test Suite
 
-All 114 automated unit and integration tests can be verified at any time:
+All 119 automated unit and integration tests can be verified at any time:
 ```powershell
 pytest tests/
 ```

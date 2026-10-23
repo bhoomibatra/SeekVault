@@ -1,2 +1,2 @@
 @echo off
-call "%~dp0Launch_SeekVault.bat"
+call "%~dp0SeekVault Prototype\run_seekvault.bat" %*

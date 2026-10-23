@@ -78,9 +78,9 @@ def generate_sample_data():
         (50, 72),
         "RAMDEOBABA UNIVERSITY - STUDENT REGISTRATION FORM\n"
         "--------------------------------------------------\n\n"
-        "Applicant Name: Harsh Maske\n"
+        "Applicant Name: Sample Student\n"
         "Department: Computer Science and Engineering\n"
-        "Contact Email: harsh.maske@ramdeobaba.edu\n"
+        "Contact Email: student@example.com\n"
         "Mobile Number: +91 9876543210\n"
         "Government Identity (Aadhaar): 4521 8963 1254\n"
         "Permanent Address: Civil Lines, Nagpur, Maharashtra, India\n\n"
@@ -94,9 +94,9 @@ def generate_sample_data():
     personal_docx = personal_dir / "Bank_Statement_Summary.docx"
     doc = docx.Document()
     doc.add_heading("Confidential Financial Statement Summary", level=1)
-    doc.add_paragraph("Account Holder: Bhoomi Batra")
+    doc.add_paragraph("Account Holder: Sample Account Holder")
     doc.add_paragraph("Tax Identity (PAN): ABCDE1234F")
-    doc.add_paragraph("Email Address: bhoomi.batra@finance-demo.org")
+    doc.add_paragraph("Email Address: holder@example.com")
     doc.add_paragraph("Primary Phone: 9812345678")
     doc.add_paragraph("Monthly scholarship stipend and university project allowance credits.")
     doc.save(str(personal_docx))

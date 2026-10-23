@@ -12,7 +12,7 @@
    - *Pros:* Complete pixel-level rendering control, native OS window frames.
    - *Cons:* Requires massive new dependencies, C++ binary binding complexities, separate API server / IPC bridge to Python backend, increases packaging footprint by 150MB+, delays shipping core search.
 2. **Option B: Retain Python + Streamlit with a Bespoke Design System & CSS Component Injections**
-   - *Pros:* Zero new framework dependencies, seamless direct memory access to `Repository`, `SearchEngine`, and `WatcherManager`, fast Windows execution, instant hot-reloading for development, battle-tested with existing 31 backend unit tests.
+   - *Pros:* Zero new framework dependencies, seamless direct memory access to `Repository`, `SearchEngine`, and `WatcherManager`, fast Windows execution, instant hot-reloading for development, battle-tested with existing 119 automated regression tests.
    - *Cons:* Default Streamlit styles look like an academic dashboard if unstyled.
    - *Resolution:* Inject bespoke CSS design system variables, custom card layouts, polished inputs, and dedicated modal confirmation components while keeping Streamlit as the host engine.
 
@@ -67,59 +67,41 @@
 
 ## 3. Screen Designs & Navigation Architecture
 
-The navigation is restructured from an admin-dashboard layout to a search-first workflow:
+The navigation is structured across 6 primary functional sections:
 
 ```
 [SeekVault Shell]
 ├── 🔍 Search (Default Landing Page)
 │    ├── Hero search bar with hybrid keyword + semantic switch
-│    ├── Multi-attribute filters (file type, folder, date modified)
+│    ├── Multi-attribute filters (file type, folder, score threshold)
 │    ├── Ranked cards with score badges, formatted excerpts, and path metadata
 │    └── Direct actions: Open File, Reveal in Explorer, Copy Path
 │
-├── 📁 File Library (Consolidated Folders + Indexed Files)
+├── 📁 My Files (Consolidated Folders + Indexed Files)
 │    ├── Authorized folders table with per-folder chunk counts & status
 │    ├── Add folder picker with path validation
-│    ├── Revoke folder with explicit confirmation dialog (files remain on disk)
+│    ├── Revoke / deauthorize folder toggle & removal (files remain on disk)
 │    └── Safe file inventory table (entity types masked, zero raw PII rendered)
 │
-├── 🛡️ Privacy & Security Center
-│    ├── 3-pillar verification: Offline enforcement, PII sanitization, file immutability
-│    ├── Entity category audit table (counts and masking strategy only)
-│    └── Clear index tool with two-step confirmation
-│
-├── ⚙️ System Health & Ingestion
+├── 📊 Indexing Status (System Health & Telemetry)
 │    ├── Background watchdog activity pill & event queue
 │    ├── File processing status (INDEXED / FAILED / PENDING)
 │    ├── Extraction error log with one-click retry
-│    └── FAISS vector / SQLite database consistency checker & self-healing
+│    └── FAISS vector / SQLite database consistency telemetry
 │
-├── 👥 Duplicates & Versions
+├── 🛡️ Privacy (Privacy Center)
+│    ├── 3-tier privacy breakdown: FULL, REDACTED, METADATA_ONLY
+│    ├── Entity category audit table (counts and masking strategy)
+│    └── Zero raw PII guarantee with sanitized representation previews
+│
+├── 👥 Duplicates (Duplicates & Versions)
 │    ├── Exact SHA-256 duplicate clusters with reclaimable storage counter
 │    ├── Side-by-side file reveal actions
 │    └── Heuristic version progression chains labeled clearly as suggestions
 │
-├── 📊 Activity & Insights
-│    ├── Real indexed volume metrics (not decorative KPIs)
-│    ├── Distribution by file extension (PDF, DOCX, TXT/MD)
-│    └── Recently updated documents
-│
-└── 🔧 Settings & Maintenance
+└── ⚙️ Settings (Settings & Maintenance)
      ├── Local directory storage paths
      ├── Model cache verification (HF_HUB_OFFLINE=1)
      ├── Database and FAISS backup / restore action
      └── Factory reset index (safe confirmation dialog + SQLite sync)
 ```
-
----
-
-## 4. Visual Previews & Artifacts
-
-1. **High-Fidelity Rendered Mockup:**
-   - Saved in: `C:\Users\hp\.gemini\antigravity-ide\brain\0395ac36-2008-4f62-9f55-e68e1f8a84cf\seekvault_search_preview_1792739769353.jpg`
-   - Demonstrates the Search hero bar, dark slate palette, badge indicators, and action triggers.
-
-2. **Interactive Clickable Design Preview:**
-   - File: [`seekvault_interactive_preview.html`](file:///c:/Users/hp/OneDrive/Documents/SeekVault/SeekVault%20Prototype/seekvault_interactive_preview.html)
-   - Features live tab navigation, mock search results, filter chips, copy-path toast triggers, and folder revoke / reset confirmation dialogs.
-   - All data in the preview is explicitly marked as sample content.

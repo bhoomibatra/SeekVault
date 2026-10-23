@@ -167,12 +167,17 @@ class Repository:
 
         norm_folders = []
         for f in folders:
-            f_norm = Path(os.path.normcase(os.path.normpath(f["folder_path"])))
-            norm_folders.append((f_norm, bool(f["is_recursive"])))
+            f_abs = os.path.normcase(os.path.normpath(os.path.abspath(f["folder_path"])))
+            f_norm = Path(f_abs)
+            try:
+                f_res = Path(os.path.normcase(os.path.normpath(str(Path(f_abs).resolve()))))
+            except Exception:
+                f_res = f_norm
+            norm_folders.append((f_norm, f_res, bool(f["is_recursive"])))
 
         # 1. Lexical path-aware containment check
         lexically_authorized = False
-        for f_norm, is_recursive in norm_folders:
+        for f_norm, f_res, is_recursive in norm_folders:
             if is_recursive:
                 if abs_p == f_norm or f_norm in abs_p.parents:
                     lexically_authorized = True
@@ -190,13 +195,15 @@ class Repository:
             if p.exists():
                 resolved_p = Path(os.path.normcase(os.path.normpath(str(p.resolve()))))
                 target_authorized = False
-                for f_norm, is_recursive in norm_folders:
+                for f_norm, f_res, is_recursive in norm_folders:
                     if is_recursive:
-                        if resolved_p == f_norm or f_norm in resolved_p.parents:
+                        if (resolved_p == f_norm or f_norm in resolved_p.parents or
+                            resolved_p == f_res or f_res in resolved_p.parents):
                             target_authorized = True
                             break
                     else:
-                        if resolved_p == f_norm or resolved_p.parent == f_norm:
+                        if (resolved_p == f_norm or resolved_p.parent == f_norm or
+                            resolved_p == f_res or resolved_p.parent == f_res):
                             target_authorized = True
                             break
                 if not target_authorized:
@@ -222,7 +229,7 @@ class Repository:
         # Sort folders by path length descending so the most specific (deepest nested) folder matches first
         folders = sorted(folders, key=lambda f: len(f["folder_path"]), reverse=True)
         for f in folders:
-            folder_dir = Path(os.path.normcase(os.path.normpath(f["folder_path"])))
+            folder_dir = Path(os.path.normcase(os.path.normpath(os.path.abspath(f["folder_path"]))))
             is_recursive = bool(f["is_recursive"])
             if is_recursive:
                 if norm_file == folder_dir or folder_dir in norm_file.parents:
@@ -535,8 +542,13 @@ class Repository:
         if not query or not query.strip():
             return []
 
-        # Escape FTS5 special characters in the query so literal phrases work
-        safe_query = query.replace('"', '""')
+        # Sanitize query for FTS5: quote individual tokens so punctuation like '-' is not treated as column operators
+        clean_terms = []
+        for term in query.strip().split():
+            clean = term.replace('"', '').strip()
+            if clean:
+                clean_terms.append(f'"{clean}"')
+        safe_query = " ".join(clean_terms) if clean_terms else f'"{query.strip()}"'
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
