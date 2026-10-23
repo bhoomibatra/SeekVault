@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 import sqlite3
 import logging
 from pathlib import Path
@@ -427,6 +428,18 @@ class Repository:
                 file_id, raw_char_count, searchable_text_preview[:2000],
                 redacted_preview[:2000], 1 if has_ocr else 0
             ))
+            # Keep FTS5 index in sync: delete stale entry then re-insert
+            try:
+                cursor.execute(
+                    "DELETE FROM file_content_fts WHERE file_id = ?", (file_id,)
+                )
+                cursor.execute(
+                    "INSERT INTO file_content_fts(file_id, searchable_text_preview) VALUES (?, ?)",
+                    (file_id, searchable_text_preview[:2000])
+                )
+            except Exception as fts_exc:
+                # FTS table may not exist on first run before migration; log and continue
+                logger.debug("FTS sync skipped for file_id=%d: %s", file_id, fts_exc)
 
     def get_file_content(self, file_id: int) -> Optional[Dict[str, Any]]:
         with self._get_conn() as conn:
@@ -472,6 +485,147 @@ class Repository:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM detected_entities WHERE file_id = ?", (file_id,))
             return [dict(r) for r in cursor.fetchall()]
+
+    # -------------------------------------------------------------
+    # Full-Text Search (FTS5)
+    # -------------------------------------------------------------
+    def fts_search_content(
+        self,
+        query: str,
+        top_k: int = 20,
+        folder_ids: Optional[List[int]] = None,
+        file_types: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """Keyword search using SQLite FTS5 on file content previews.
+
+        Returns a list of dicts with keys:
+          file_id, score (bm25, negated so lower=better), file_rec fields,
+          and 'excerpt' from the FTS snippet function.
+
+        ``folder_ids`` and ``file_types`` are optional allow-lists applied
+        before returning results.  Only INDEXED files in active authorized
+        folders are returned.
+        """
+        if not query or not query.strip():
+            return []
+
+        # Escape FTS5 special characters in the query so literal phrases work
+        safe_query = query.replace('"', '""')
+
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+
+            # Build optional filter clauses
+            extra_where = "AND f.status = 'INDEXED' AND af.is_active = 1"
+            params: List[Any] = [safe_query]
+
+            if folder_ids:
+                placeholders = ",".join(["?"] * len(folder_ids))
+                extra_where += f" AND f.folder_id IN ({placeholders})"
+                params.extend(folder_ids)
+
+            if file_types:
+                placeholders = ",".join(["?"] * len(file_types))
+                extra_where += f" AND f.file_type IN ({placeholders})"
+                params.extend(file_types)
+
+            params.append(top_k)
+
+            sql = f"""
+                SELECT
+                    fts.file_id,
+                    bm25(file_content_fts)            AS bm25_score,
+                    snippet(
+                        file_content_fts, 1,
+                        '<b>', '</b>', '...', 20
+                    )                                 AS excerpt,
+                    f.file_name,
+                    f.file_path,
+                    f.file_extension,
+                    f.file_size,
+                    f.file_type,
+                    f.modified_at,
+                    f.privacy_tier,
+                    f.status,
+                    f.visual_metadata
+                FROM file_content_fts fts
+                JOIN files f ON f.id = fts.file_id
+                JOIN authorized_folders af ON af.id = f.folder_id
+                WHERE file_content_fts MATCH ?
+                {extra_where}
+                ORDER BY bm25_score
+                LIMIT ?
+            """
+
+            try:
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+            except Exception as exc:
+                logger.warning("FTS search failed: %s", exc)
+                return []
+
+            results = []
+            for row in rows:
+                rec = dict(row)
+                if rec.get("visual_metadata"):
+                    try:
+                        rec["visual_metadata"] = json.loads(rec["visual_metadata"])
+                    except Exception:
+                        pass
+                # Convert BM25 score (negative in SQLite) to a positive relevance signal
+                rec["fts_score"] = abs(float(rec.pop("bm25_score", 0) or 0))
+                results.append(rec)
+
+            return results
+
+    def get_files_by_ids_filtered(
+        self,
+        file_ids: List[int],
+        folder_ids: Optional[List[int]] = None,
+        file_types: Optional[List[str]] = None
+    ) -> Dict[int, Dict[str, Any]]:
+        """Fetch file records for a set of IDs and apply optional filters.
+
+        Returns a dict mapping file_id → file record dict.  Only INDEXED
+        files in active authorized folders are included.
+        """
+        if not file_ids:
+            return {}
+
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            placeholders = ",".join(["?"] * len(file_ids))
+            params: List[Any] = list(file_ids)
+
+            extra_where = "AND f.status = 'INDEXED' AND af.is_active = 1"
+
+            if folder_ids:
+                ph = ",".join(["?"] * len(folder_ids))
+                extra_where += f" AND f.folder_id IN ({ph})"
+                params.extend(folder_ids)
+
+            if file_types:
+                ph = ",".join(["?"] * len(file_types))
+                extra_where += f" AND f.file_type IN ({ph})"
+                params.extend(file_types)
+
+            sql = f"""
+                SELECT f.* FROM files f
+                JOIN authorized_folders af ON af.id = f.folder_id
+                WHERE f.id IN ({placeholders})
+                {extra_where}
+            """
+            cursor.execute(sql, params)
+            out: Dict[int, Dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                rec = dict(row)
+                if rec.get("visual_metadata"):
+                    try:
+                        rec["visual_metadata"] = json.loads(rec["visual_metadata"])
+                    except Exception:
+                        pass
+                out[rec["id"]] = rec
+            return out
 
     def get_all_detected_entities(self) -> List[Dict[str, Any]]:
         with self._get_conn() as conn:

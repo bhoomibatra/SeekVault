@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Increment this whenever the schema changes.  The migration runner in
 # `init_db()` compares CURRENT_SCHEMA_VERSION against the value stored in the
 # `db_meta` table and applies any pending migrations in order.
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Baseline CREATE statements (version 1)
@@ -120,6 +120,15 @@ CREATE INDEX IF NOT EXISTS idx_files_folder        ON files(folder_id);
 CREATE INDEX IF NOT EXISTS idx_files_status        ON files(status);
 CREATE INDEX IF NOT EXISTS idx_entities_file       ON detected_entities(file_id);
 CREATE INDEX IF NOT EXISTS idx_vector_file_mod     ON vector_mappings(modality, faiss_vector_id);
+
+-- FTS5 full-text virtual table (standalone; stores compressed text in shadow tables)
+-- file_id is unindexed so we can join it back to the files table.
+CREATE VIRTUAL TABLE IF NOT EXISTS file_content_fts
+    USING fts5(
+        file_id UNINDEXED,
+        searchable_text_preview,
+        tokenize='porter ascii'
+    );
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -158,6 +167,20 @@ ALTER TABLE files ADD COLUMN error_detail TEXT;
 
 -- Add is_dismissed to version_members if absent
 ALTER TABLE version_members ADD COLUMN is_dismissed INTEGER DEFAULT 0;
+"""
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Migration: v2 → v3
+#   • Creates the FTS5 virtual table file_content_fts if it does not exist.
+#   • Rebuilds the index from existing file_content rows.
+# ──────────────────────────────────────────────────────────────────────────────
+_MIGRATION_V3_SQL = """
+CREATE VIRTUAL TABLE IF NOT EXISTS file_content_fts
+    USING fts5(
+        file_id UNINDEXED,
+        searchable_text_preview,
+        tokenize='porter ascii'
+    );
 """
 
 
@@ -226,6 +249,12 @@ def init_db(conn: sqlite3.Connection, db_path: Optional[Path] = None) -> None:
         logger.info("Migrated database schema from v1 → v2.")
         current_version = 2
 
+    if current_version < 3:
+        _apply_migration_v3(conn)
+        _set_schema_version(conn, 3)
+        logger.info("Migrated database schema from v2 → v3 (FTS5 table).")
+        current_version = 3
+
     if current_version < CURRENT_SCHEMA_VERSION:
         logger.warning(
             "Schema version %d is older than current %d but no migration found — "
@@ -291,3 +320,26 @@ def _apply_migration_v2(conn: sqlite3.Connection) -> None:
 
     # Ensure status index exists
     conn.execute("CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)")
+
+
+def _apply_migration_v3(conn: sqlite3.Connection) -> None:
+    """
+    Create the standalone FTS5 virtual table file_content_fts and backfill
+    existing file_content rows.  Safe to call multiple times (IF NOT EXISTS).
+    """
+    conn.executescript(_MIGRATION_V3_SQL)
+    # Backfill any existing file_content rows into the FTS index
+    try:
+        rows = conn.execute(
+            "SELECT file_id, searchable_text_preview FROM file_content "
+            "WHERE searchable_text_preview IS NOT NULL AND searchable_text_preview != ''"
+        ).fetchall()
+        for row in rows:
+            conn.execute(
+                "INSERT INTO file_content_fts(file_id, searchable_text_preview) VALUES (?, ?)",
+                (row[0], row[1])
+            )
+        logger.info("v3 migration: FTS5 table created; backfilled %d rows.", len(rows))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("v3 migration: FTS5 backfill skipped — %s", exc)
+
