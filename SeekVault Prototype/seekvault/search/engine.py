@@ -207,6 +207,46 @@ class SearchEngine:
             for rec, score in sorted_files[:top_k]
         ]
 
+    def search_keyword(
+        self,
+        query: str,
+        top_k: int = SEARCH_DEFAULT_TOP_K,
+        folder_ids: Optional[List[int]] = None,
+        file_types: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Exact/Keyword-only search using SQLite FTS5 index."""
+        if not query or not query.strip():
+            return []
+
+        fts_raw = self.repository.fts_search_content(
+            query,
+            top_k=top_k,
+            folder_ids=folder_ids,
+            file_types=file_types,
+        )
+        fids = [row["file_id"] for row in fts_raw]
+        if not fids:
+            return []
+
+        file_recs = self.repository.get_files_by_ids_filtered(
+            fids, folder_ids=folder_ids, file_types=file_types
+        )
+        results: List[Dict[str, Any]] = []
+        for row in fts_raw:
+            fid = row["file_id"]
+            rec = file_recs.get(fid)
+            if not rec:
+                continue
+            results.append(
+                self._enrich_result(
+                    rec,
+                    score=abs(float(row.get("rank", 1.0))),
+                    excerpt=row.get("excerpt", ""),
+                    relevance_label="Keyword",
+                )
+            )
+        return results
+
     def search_hybrid(
         self,
         query: str,

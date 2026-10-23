@@ -56,6 +56,16 @@ def restore_backup(backup_zip: Path) -> Tuple[bool, str]:
             if "seekvault.db" not in namelist:
                 return False, "Invalid SeekVault backup: seekvault.db missing from archive root."
 
+            # Clean up any stale SQLite WAL or SHM files
+            wal_file = DB_PATH.with_name("seekvault.db-wal")
+            shm_file = DB_PATH.with_name("seekvault.db-shm")
+            if wal_file.exists():
+                try: wal_file.unlink()
+                except Exception: pass
+            if shm_file.exists():
+                try: shm_file.unlink()
+                except Exception: pass
+
             # Extract directly into DATA_DIR
             zipf.extractall(DATA_DIR)
 

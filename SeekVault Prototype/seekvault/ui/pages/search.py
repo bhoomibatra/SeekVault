@@ -158,7 +158,8 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
 
             if chosen_folder and pipeline:
                 friendly = get_friendly_folder_name(chosen_folder)
-                fid = repo.add_authorized_folder(chosen_folder, is_recursive=True)
+                is_rec = repo.get_setting("default_recursive", "1") == "1"
+                fid = repo.add_authorized_folder(chosen_folder, is_recursive=is_rec)
                 prog_bar = st.progress(0)
                 prog_text = st.empty()
 
@@ -167,7 +168,7 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                         prog_bar.progress((idx + 1) / total)
                         prog_text.caption(f"Reading {fname}...")
 
-                count = pipeline.scan_folder(chosen_folder, is_recursive=True, progress_callback=_prog)
+                count = pipeline.scan_folder(chosen_folder, is_recursive=is_rec, progress_callback=_prog)
                 if watcher:
                     watcher.sync_watches()
                 prog_bar.empty()
@@ -267,13 +268,24 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
     if q_str:
         start_t = time.perf_counter()
         try:
-            # Perform hybrid retrieval with active filters
-            raw_results = search_engine.search_hybrid(
-                query=q_str,
-                top_k=30,
-                folder_ids=selected_folder_ids,
-                file_types=selected_file_types
-            )
+            # Respect search matching mode and results limit from settings
+            search_mode = repo.get_setting("search_mode", "HYBRID")
+            results_limit = int(repo.get_setting("search_results_per_page", "25"))
+
+            if search_mode == "KEYWORD_ONLY":
+                raw_results = search_engine.search_keyword(
+                    query=q_str,
+                    top_k=results_limit,
+                    folder_ids=selected_folder_ids,
+                    file_types=selected_file_types
+                )
+            else:
+                raw_results = search_engine.search_hybrid(
+                    query=q_str,
+                    top_k=results_limit,
+                    folder_ids=selected_folder_ids,
+                    file_types=selected_file_types
+                )
             elapsed_ms = (time.perf_counter() - start_t) * 1000.0
 
             # Filter by date if selected
@@ -316,35 +328,75 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
             st.markdown(
                 f"""
                 <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 32px 20px; text-align: center; margin-top: 10px;">
-                    <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+                    <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
                         No matching files found for &ldquo;{q_str}&rdquo;
                     </div>
-                    <p style="font-size: 0.85rem; color: #4A5160; max-width: 440px; margin: 0 auto; line-height: 1.5;">
-                        Try using broader search terms, clearing active filters, or adding more folders to your library.
+                    <p style="font-size: 0.86rem; color: #4A5160; max-width: 480px; margin: 0 auto 14px auto; line-height: 1.5;">
+                        Try using broader search terms, describing what the document is about, or making sure the folder containing your file has been added to SeekVault.
                     </p>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
+            col_act1, col_act2, col_act3 = st.columns([1.2, 1.2, 1.6])
+            with col_act1:
+                if st.button("Add More Folders", key="btn_no_match_add_folder", type="primary", use_container_width=True):
+                    st.session_state["show_add_modal"] = "folder"
+                    st.rerun()
+            with col_act2:
+                if st.button("Add Individual Files", key="btn_no_match_add_files", use_container_width=True):
+                    st.session_state["show_add_modal"] = "files"
+                    st.rerun()
+            with col_act3:
+                if st.button("Clear Search Filters", key="btn_no_match_clear_filters", use_container_width=True):
+                    st.session_state.search_filter_type = "All Types"
+                    st.session_state.search_filter_folder = "All Folders"
+                    st.session_state.search_filter_date = "Any Time"
+                    st.rerun()
         else:
             # Clean list of results (no internal algorithmic scores)
             for idx, res in enumerate(results, 1):
                 format_badge = _get_format_badge(res.get("file_extension", ""))
+                rel_label = res.get("relevance_label", "")
+                rel_badge = render_relevance_badge(rel_label) if rel_label else ""
                 file_sz = format_file_size(res.get("file_size", 0))
                 mod_time = res.get("modified_at", "Unknown")
                 file_path = res.get("file_path", "")
                 raw_snippet = res.get("preview") or ""
-                formatted_snippet = _format_snippet(raw_snippet[:450], q_str) if raw_snippet else ""
+                tier = res.get("privacy_tier", "FULL")
+                has_entities = bool(res.get("entities"))
+
+                # Respect privacy protection mode: hide body or mask snippet
+                protect_mode = repo.get_setting("privacy_protection_mode", "MASK_SNIPPETS")
+                if protect_mode == "EXCLUDE_BODY" and (tier in ("REDACTED", "METADATA_ONLY") or has_entities):
+                    formatted_snippet = "<span style='color: #697386; font-style: italic;'>[Document text hidden due to privacy protection policy]</span>"
+                else:
+                    formatted_snippet = _format_snippet(raw_snippet[:450], q_str) if raw_snippet else ""
+
+                is_img = (
+                    res.get("file_type") == "IMAGE"
+                    or (res.get("file_extension") or "").lower() in (".jpg", ".jpeg", ".png", ".webp", ".bmp")
+                )
+                has_img_on_disk = is_img and os.path.exists(file_path)
 
                 with st.container():
-                    col_info, col_actions = st.columns([4.0, 1.0])
+                    if has_img_on_disk:
+                        col_thumb, col_info, col_actions = st.columns([1.1, 2.8, 1.3])
+                        with col_thumb:
+                            try:
+                                st.image(file_path, use_container_width=True)
+                            except Exception:
+                                pass
+                    else:
+                        col_info, col_actions = st.columns([3.8, 1.3])
 
                     with col_info:
-                        # File Name + Format Badge
+                        # File Name + Format Badge + Relevance Badge
                         st.markdown(
                             f"""
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
                                 {format_badge}
+                                {rel_badge}
                                 <span style="font-size: 0.98rem; font-weight: 600; color: #15181E;">
                                     {res['file_name']}
                                 </span>
@@ -360,11 +412,22 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                                 unsafe_allow_html=True
                             )
 
-                        # Location Path and Metadata
+                        # Location Path and Metadata (respect show_full_path setting)
                         parent_path = str(Path(file_path).parent)
                         friendly_parent = get_friendly_folder_name(parent_path)
-                        st.markdown(
-                            f"""
+                        show_full_path = repo.get_setting("show_full_path", "0") == "1"
+
+                        if show_full_path:
+                            path_html = f"""
+                            <div style="font-size: 0.82rem; color: #4A5160; margin: 4px 0 2px 0;">
+                                {file_sz} &nbsp;•&nbsp; Modified {mod_time}
+                            </div>
+                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.76rem; color: #15181E; background: #F0EEE8; border: 1px solid #E6E2D8; border-radius: 4px; padding: 4px 8px; margin-top: 4px; word-break: break-all;">
+                                📁 {file_path}
+                            </div>
+                            """
+                        else:
+                            path_html = f"""
                             <div style="font-size: 0.82rem; color: #4A5160; margin: 4px 0 2px 0;">
                                 📁 In <strong>{friendly_parent}</strong> &nbsp;•&nbsp; {file_sz} &nbsp;•&nbsp; Modified {mod_time}
                             </div>
@@ -374,18 +437,17 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                                     {file_path}
                                 </div>
                             </details>
-                            """,
-                            unsafe_allow_html=True
-                        )
+                            """
 
+                        st.markdown(path_html, unsafe_allow_html=True)
 
                     with col_actions:
-                        if st.button("Open", key=f"search_open_{res['file_id']}_{idx}", use_container_width=True):
+                        if st.button("Open File", key=f"search_open_{res['file_id']}_{idx}", use_container_width=True):
                             ok, msg = open_file_in_os(file_path)
                             if not ok:
                                 st.warning(msg)
 
-                        if st.button("Reveal in Explorer", key=f"search_reveal_{res['file_id']}_{idx}", use_container_width=True):
+                        if st.button("Show in Folder", key=f"search_reveal_{res['file_id']}_{idx}", use_container_width=True):
                             ok, msg = open_folder_in_os(file_path)
                             if not ok:
                                 st.warning(msg)
@@ -396,12 +458,12 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
         # Prompt Starters for initial orientation
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 28px 24px; text-align: center; margin-top: 16px;">
+            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 26px 20px; text-align: center; margin-top: 16px;">
                 <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
-                    Search your library
+                    Find any file, even if you forgot its exact name
                 </div>
-                <p style="font-size: 0.86rem; color: #4A5160; max-width: 460px; margin: 0 auto 14px auto; line-height: 1.5;">
-                    Type a query above to search through indexed documents and images, or test search with one of these examples:
+                <p style="font-size: 0.86rem; color: #4A5160; max-width: 500px; margin: 0 auto 14px auto; line-height: 1.5;">
+                    Search your documents and images by what they contain, or try one of these natural examples:
                 </p>
             </div>
             """,
@@ -412,14 +474,15 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
 
         sc1, sc2, sc3 = st.columns(3)
         with sc1:
-            if st.button("Candidate Elimination Algorithm", key="sample_q1", use_container_width=True):
-                st.session_state.search_query_preset = "notes about candidate elimination algorithm"
+            if st.button("“DBMS deadlock notes”", key="sample_q1", use_container_width=True):
+                st.session_state.search_query_preset = "notes about database deadlock and transaction concurrency"
                 st.rerun()
         with sc2:
-            if st.button("Database Normalization BCNF", key="sample_q2", use_container_width=True):
-                st.session_state.search_query_preset = "database relational normalization forms BCNF"
+            if st.button("“Error message screenshot”", key="sample_q2", use_container_width=True):
+                st.session_state.search_query_preset = "screenshot containing terminal error exception"
                 st.rerun()
         with sc3:
-            if st.button("Red Car Parked Outside", key="sample_q3", use_container_width=True):
-                st.session_state.search_query_preset = "red car parked near a building"
+            if st.button("“Project proposal report”", key="sample_q3", use_container_width=True):
+                st.session_state.search_query_preset = "project proposal report summary"
                 st.rerun()
+

@@ -1,5 +1,5 @@
 import hashlib
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 from seekvault.privacy.recognizers import scan_custom_patterns
 
@@ -34,9 +34,15 @@ class PrivacyAnalyzer:
         return cls._presidio_recognizers
 
     @classmethod
-    def analyze(cls, text: str, entities: List[str] = None) -> List[Dict[str, Any]]:
+    def analyze(
+        cls,
+        text: str,
+        entities: List[str] = None,
+        enabled_rules: Optional[Dict[str, bool]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Analyze text using Presidio Recognizers supplemented with Custom Regex.
+        Respects enabled_rules dict (phone, email, id, financial, creds).
         Returns a list of standardized entity dictionaries:
         [{"entity_type": ..., "entity_text": ..., "start_char": ..., "end_char": ..., "confidence": ...}]
         """
@@ -46,12 +52,21 @@ class PrivacyAnalyzer:
         detected_entities: List[Dict[str, Any]] = []
 
         # 1. Custom Regex Recognizers (Aadhaar, PAN, custom phone/keys/emails)
-        custom_matches = scan_custom_patterns(text)
+        custom_matches = scan_custom_patterns(text, enabled_rules=enabled_rules)
         detected_entities.extend(custom_matches)
 
         # 2. Presidio Predefined Recognizers
         presidio_recs = cls._get_presidio_recognizers()
         for rec in presidio_recs:
+            rec_name = rec.__class__.__name__.lower()
+            if enabled_rules:
+                if "phone" in rec_name and not enabled_rules.get("phone", True):
+                    continue
+                if "email" in rec_name and not enabled_rules.get("email", True):
+                    continue
+                if ("creditcard" in rec_name or "crypto" in rec_name or "iban" in rec_name) and not enabled_rules.get("financial", True):
+                    continue
+
             try:
                 results = rec.analyze(text=text, entities=entities)
                 if results:

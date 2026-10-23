@@ -49,6 +49,19 @@ class IngestionPipeline:
             logger.debug(f"Skipping unsupported extension {ext}: {file_path}")
             return None
 
+        # Check temporary file exclusion setting
+        skip_temp = self.repository.get_setting("skip_temp_files", "1") == "1"
+        fname = file_path.name
+        if skip_temp and (
+            fname.startswith("~$")
+            or fname.startswith(".~lock")
+            or fname.endswith(".tmp")
+            or fname.endswith(".crdownload")
+            or fname.endswith(".part")
+        ):
+            logger.info(f"Skipping temporary file: {file_path}")
+            return None
+
         # Handle locked or inaccessible files before stat/hash
         try:
             stat = file_path.stat()
@@ -97,7 +110,41 @@ class IngestionPipeline:
         logger.info(f"Ingesting {file_type}: {file_path.name}")
 
         # 2. Extraction & Privacy Processing
+        # Check maximum file size for full search
+        max_size_mb = int(self.repository.get_setting("max_file_size_mb", "50"))
+        max_bytes = max_size_mb * 1024 * 1024
+        is_oversized = file_size > max_bytes
+
         if not is_image:
+            if is_oversized:
+                logger.info(f"File {file_path.name} ({file_size} bytes) exceeds limit ({max_size_mb} MB). Indexing as METADATA_ONLY.")
+                if existing:
+                    self.search_engine.text_index.remove_file(existing["id"])
+                file_id = self.repository.upsert_file(
+                    folder_id=folder_id,
+                    file_path=str(file_path),
+                    file_name=file_path.name,
+                    file_extension=ext,
+                    file_size=file_size,
+                    file_hash=file_hash,
+                    file_type=file_type,
+                    modified_at=modified_at,
+                    privacy_tier=TIER_METADATA_ONLY,
+                    status="INDEXED",
+                    error_detail=None
+                )
+                msg = f"[FILE EXCEEDS {max_size_mb}MB LIMIT - INDEXED AS METADATA ONLY]"
+                self.repository.save_file_content(
+                    file_id=file_id,
+                    raw_char_count=0,
+                    searchable_text_preview=msg,
+                    redacted_preview=msg,
+                    has_ocr=False
+                )
+                self.search_engine.text_index.remove_file(file_id)
+                self.repository.clear_vector_mappings(file_id, "TEXT")
+                return self.repository.get_file_by_id(file_id)
+
             extract_res = TextExtractor.extract(file_path)
             
             # If extraction failed (corrupt file, unreadable encoding, syntax error)
@@ -125,13 +172,23 @@ class IngestionPipeline:
             raw_text = extract_res.get("text", "")
             raw_chars = len(raw_text)
 
-            # Privacy Analysis
-            detected_entities = PrivacyAnalyzer.analyze(raw_text) if raw_text else []
+            # Privacy Analysis with configured detection rules
+            rules = {
+                "phone": self.repository.get_setting("detect_phone", "1") == "1",
+                "email": self.repository.get_setting("detect_email", "1") == "1",
+                "id": self.repository.get_setting("detect_id", "1") == "1",
+                "financial": self.repository.get_setting("detect_financial", "1") == "1",
+            }
+            detected_entities = PrivacyAnalyzer.analyze(raw_text, enabled_rules=rules) if raw_text else []
             privacy_tier = PrivacyClassifier.classify(file_path.name, raw_text, detected_entities)
 
             # Sanitization (original file is NEVER modified)
+            protect_mode = self.repository.get_setting("privacy_protection_mode", "MASK_SNIPPETS")
             if privacy_tier == TIER_REDACTED:
-                sanitized_text = PrivacySanitizer.sanitize(raw_text, detected_entities)
+                if protect_mode == "EXCLUDE_BODY":
+                    sanitized_text = ""
+                else:
+                    sanitized_text = PrivacySanitizer.sanitize(raw_text, detected_entities)
             elif privacy_tier == TIER_METADATA_ONLY:
                 sanitized_text = ""
             else:
@@ -157,8 +214,12 @@ class IngestionPipeline:
                 searchable_preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
                 redacted_preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
             elif privacy_tier == TIER_REDACTED:
-                searchable_preview = sanitized_text[:2000]
-                redacted_preview = sanitized_text[:2000]
+                if protect_mode == "EXCLUDE_BODY":
+                    searchable_preview = "[DOCUMENT TEXT HIDDEN - PRIVACY PROTECTION]"
+                    redacted_preview = "[DOCUMENT TEXT HIDDEN - PRIVACY PROTECTION]"
+                else:
+                    searchable_preview = sanitized_text[:2000]
+                    redacted_preview = sanitized_text[:2000]
             else:
                 searchable_preview = raw_text[:2000]
                 redacted_preview = raw_text[:2000]
@@ -218,18 +279,24 @@ class IngestionPipeline:
                 "exif": meta_res.get("exif", {})
             }
 
-            # Optional OCR on image (only if enabled and available)
+            # Optional OCR on image (respecting user preference)
             ocr_text = ""
             has_ocr = False
-            from seekvault import config
-            if getattr(config, "ENABLE_OCR", False) and OCRExtractor.is_available():
+            enable_ocr = self.repository.get_setting("enable_ocr", "1") == "1"
+            if enable_ocr and OCRExtractor.is_available():
                 ocr_res = OCRExtractor.extract_text(file_path)
                 ocr_text = ocr_res.get("text", "")
                 has_ocr = bool(ocr_text)
 
             detected_entities = []
             if ocr_text:
-                detected_entities = PrivacyAnalyzer.analyze(ocr_text)
+                rules = {
+                    "phone": self.repository.get_setting("detect_phone", "1") == "1",
+                    "email": self.repository.get_setting("detect_email", "1") == "1",
+                    "id": self.repository.get_setting("detect_id", "1") == "1",
+                    "financial": self.repository.get_setting("detect_financial", "1") == "1",
+                }
+                detected_entities = PrivacyAnalyzer.analyze(ocr_text, enabled_rules=rules)
 
             privacy_tier = PrivacyClassifier.classify(file_path.name, ocr_text, detected_entities)
 
@@ -299,10 +366,13 @@ class IngestionPipeline:
     def scan_folder(
         self,
         folder_path: str,
-        is_recursive: bool = True,
+        is_recursive: Optional[bool] = None,
         progress_callback: Optional[Any] = None
     ) -> int:
         """Scan and ingest all supported files within an authorized folder."""
+        if is_recursive is None:
+            is_recursive = self.repository.get_setting("default_recursive", "1") == "1"
+
         count = 0
         norm_dir = Path(folder_path)
         if not norm_dir.exists() or not norm_dir.is_dir():
@@ -322,12 +392,13 @@ class IngestionPipeline:
             return 0
 
         # Filter supported files first for accurate progress
+        skip_temp = self.repository.get_setting("skip_temp_files", "1") == "1"
         supported_files = []
         for p in candidates:
             if not p.is_file():
                 continue
             fname = p.name
-            if (
+            if skip_temp and (
                 fname.startswith("~$")
                 or fname.startswith(".~lock")
                 or fname.endswith(".tmp")

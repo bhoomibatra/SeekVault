@@ -104,7 +104,7 @@ def inject_design_system() -> None:
     """Inject SeekVault Light Theme Design System ensuring WCAG AA compliant contrast."""
     custom_css = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
         /* ─── CSS Variables ─── */
         :root {
@@ -132,11 +132,164 @@ def inject_design_system() -> None:
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Enforce dark text across all generic Streamlit layout containers */
-        .stApp p, .stApp span, .stApp label, .stApp li, .stApp td, .stApp th {
+        /* Enforce dark text and clean vertical line-height across all generic Streamlit layout containers */
+        .stApp p, .stApp label, .stApp li, .stApp td, .stApp th {
             color: #15181E;
             font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
+            line-height: 1.45 !important;
         }
+
+        /* ─── Guaranteed Fix for Expander & Icon Overlap ─── */
+        [data-testid="stExpander"] {
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 8px !important;
+            background-color: #FFFFFF !important;
+            margin-bottom: 12px !important;
+        }
+
+        [data-testid="stExpander"] summary {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 12px !important;
+            cursor: pointer !important;
+            padding: 10px 14px !important;
+            list-style: none !important;
+        }
+
+        [data-testid="stExpander"] summary::-webkit-details-marker {
+            display: none !important;
+        }
+
+        /* ─── Universal Protection for ALL Streamlit Icons Across Entire App ─── */
+        [data-testid="stIconMaterial"],
+        [data-testid^="stIcon"],
+        [data-testid*="Chevron"],
+        .material-symbols-rounded,
+        .material-icons,
+        span[translate="no"] {
+            font-family: "Material Symbols Rounded", "Material Icons", sans-serif !important;
+            font-feature-settings: "liga" 1 !important;
+            -webkit-font-feature-settings: "liga" 1 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+            max-width: 1.5rem !important;
+            max-height: 1.5rem !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            line-height: 1 !important;
+            vertical-align: middle !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Completely suppress raw ligature text strings on all expander chevrons */
+        [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
+        [data-testid="stExpander"] summary [data-testid="stExpanderIcon"],
+        [data-testid="stExpander"] summary [data-testid="stExpanderStepChevron"],
+        [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
+        [data-testid="stExpander"] summary svg,
+        [data-testid="stExpander"] summary div:first-child [data-testid="stIconMaterial"],
+        [data-testid="stExpander"] summary span:first-child,
+        details summary [data-testid="stIconMaterial"],
+        details summary [data-testid="stExpanderIcon"],
+        details summary [data-testid="stExpanderStepChevron"],
+        details summary span:first-child,
+        .stExpander summary [data-testid="stIconMaterial"] {
+            font-size: 0 !important;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+            line-height: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 18px !important;
+            min-width: 18px !important;
+            max-width: 18px !important;
+            height: 18px !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
+            letter-spacing: -9999px !important;
+            user-select: none !important;
+        }
+
+        /* Crisp vector chevron that NEVER leaks font text */
+        [data-testid="stExpander"] summary [data-testid="stIconMaterial"]::after,
+        [data-testid="stExpander"] summary [data-testid="stExpanderIcon"]::after,
+        [data-testid="stExpander"] summary [data-testid="stExpanderStepChevron"]::after,
+        [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"]::after,
+        [data-testid="stExpander"] summary div:first-child [data-testid="stIconMaterial"]::after,
+        [data-testid="stExpander"] summary span:first-child::after,
+        details summary [data-testid="stIconMaterial"]::after,
+        details summary [data-testid="stExpanderIcon"]::after,
+        details summary [data-testid="stExpanderStepChevron"]::after,
+        details summary span:first-child::after,
+        .stExpander summary [data-testid="stIconMaterial"]::after {
+            content: '' !important;
+            display: block !important;
+            width: 7px !important;
+            height: 7px !important;
+            border-right: 2px solid #4A5160 !important;
+            border-bottom: 2px solid #4A5160 !important;
+            transform: rotate(-45deg) !important;
+            transition: transform 0.18s ease !important;
+            margin-left: -2px !important;
+            letter-spacing: normal !important;
+        }
+
+        /* Rotate chevron downward when expander is open */
+        [data-testid="stExpander"][open] summary [data-testid="stIconMaterial"]::after,
+        [data-testid="stExpander"][open] summary [data-testid="stExpanderIcon"]::after,
+        [data-testid="stExpander"][open] summary [data-testid="stExpanderStepChevron"]::after,
+        [data-testid="stExpander"][open] summary [data-testid="stExpanderToggleIcon"]::after,
+        [data-testid="stExpander"][open] summary div:first-child [data-testid="stIconMaterial"]::after,
+        [data-testid="stExpander"][open] summary span:first-child::after,
+        details[open] summary [data-testid="stIconMaterial"]::after,
+        details[open] summary [data-testid="stExpanderIcon"]::after,
+        details[open] summary [data-testid="stExpanderStepChevron"]::after,
+        details[open] summary span:first-child::after,
+        .stExpander[open] summary [data-testid="stIconMaterial"]::after {
+            transform: rotate(45deg) !important;
+            margin-top: -3px !important;
+            margin-left: 0 !important;
+        }
+
+        /* Expander label text must never touch or collide with the icon */
+        [data-testid="stExpander"] summary > div,
+        [data-testid="stExpander"] summary > p,
+        details summary > div,
+        details summary > p {
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 1 !important;
+            font-size: 0.92rem !important;
+            font-weight: 600 !important;
+            color: #15181E !important;
+            line-height: 1.45 !important;
+            white-space: normal !important;
+            overflow-wrap: break-word !important;
+        }
+
+        /* Buttons: Ensure adequate width, padding, clean line-height, and proper text wrapping */
+        [data-testid="stButton"] button,
+        .stButton > button {
+            min-height: 38px !important;
+            padding: 8px 16px !important;
+            font-size: 0.88rem !important;
+            font-weight: 500 !important;
+            line-height: 1.45 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            border-radius: 6px !important;
+        }
+
 
         /* ─── Headings: 600-700 weight, solid #15181E ─── */
         h1, h2, h3, h4, h5, h6,
@@ -325,23 +478,9 @@ def inject_design_system() -> None:
             border-bottom: 2px solid #1D4ED8 !important;
         }
 
-        /* ─── Streamlit Expanders ─── */
-        [data-testid="stExpander"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid #E6E2D8 !important;
-            border-radius: 8px !important;
-            margin-bottom: 12px !important;
-        }
-
-        [data-testid="stExpander"] summary {
-            color: #15181E !important;
-            font-weight: 600 !important;
-            font-size: 0.92rem !important;
+        /* Streamlit expander content styling */
+        [data-testid="stExpanderDetails"] {
             padding: 12px 16px !important;
-        }
-
-        [data-testid="stExpander"] summary span {
-            color: #15181E !important;
         }
 
         /* ─── Streamlit Metrics ─── */

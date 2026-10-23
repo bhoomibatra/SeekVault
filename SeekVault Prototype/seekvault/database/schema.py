@@ -282,6 +282,18 @@ def init_db(conn: sqlite3.Connection, db_path: Optional[Path] = None) -> None:
         conn.execute("ALTER TABLE version_members ADD COLUMN is_dismissed INTEGER DEFAULT 0")
         logger.info("Self-healing: added missing version_members.is_dismissed column.")
 
+    try:
+        de_cols = [row[1] for row in conn.execute("PRAGMA table_info(detected_entities)").fetchall()]
+        if de_cols and "entity_token" not in de_cols:
+            if "entity_text" in de_cols:
+                conn.execute("ALTER TABLE detected_entities ADD COLUMN entity_token TEXT")
+                conn.execute("UPDATE detected_entities SET entity_token = COALESCE(entity_text, '<REDACTED>') WHERE entity_token IS NULL")
+            else:
+                conn.execute("ALTER TABLE detected_entities ADD COLUMN entity_token TEXT")
+            logger.info("Self-healing: added missing detected_entities.entity_token column.")
+    except Exception as exc:
+        logger.warning("Could not verify detected_entities columns: %s", exc)
+
 
 
 

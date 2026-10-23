@@ -26,6 +26,22 @@ class Repository:
             return get_db_connection(self.db_path)
         return get_db_connection()
 
+    def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """Fetch a persistent key-value setting from db_meta."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM db_meta WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            return row[0] if row else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        """Store a persistent key-value setting in db_meta."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO db_meta (key, value) VALUES (?, ?)", (key, str(value)))
+            conn.commit()
+
+
     # -------------------------------------------------------------
     # Authorized Folders
     # -------------------------------------------------------------
@@ -162,7 +178,7 @@ class Repository:
                     lexically_authorized = True
                     break
             else:
-                if abs_p.parent == f_norm:
+                if abs_p == f_norm or abs_p.parent == f_norm:
                     lexically_authorized = True
                     break
 
@@ -180,7 +196,7 @@ class Repository:
                             target_authorized = True
                             break
                     else:
-                        if resolved_p.parent == f_norm:
+                        if resolved_p == f_norm or resolved_p.parent == f_norm:
                             target_authorized = True
                             break
                 if not target_authorized:
@@ -344,7 +360,17 @@ class Repository:
         norm_path = os.path.normpath(os.path.abspath(file_path))
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM files WHERE file_path = ?", (norm_path,))
+            cursor.execute("SELECT id FROM files WHERE file_path = ?", (norm_path,))
+            row = cursor.fetchone()
+            if not row:
+                return False
+            fid = row["id"] if isinstance(row, dict) or hasattr(row, "keys") else row[0]
+            try:
+                cursor.execute("DELETE FROM file_content_fts WHERE file_id = ?", (str(fid),))
+            except Exception:
+                pass
+            cursor.execute("DELETE FROM files WHERE id = ?", (fid,))
+            conn.commit()
             return cursor.rowcount > 0
 
     def get_all_indexed_files(
@@ -652,7 +678,7 @@ class Repository:
             return cursor.rowcount
 
     def reset_all_search_indices(self) -> int:
-        """Purge all vector mappings and set all files' status to 'PENDING'.
+        """Purge all vector mappings, clear FTS5, and set all files' status to 'PENDING'.
 
         Leaves authorized_folders and original files intact. Prevents index drift.
         Returns count of affected files.
@@ -660,7 +686,12 @@ class Repository:
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM vector_mappings")
+            try:
+                cursor.execute("DELETE FROM file_content_fts")
+            except Exception:
+                pass
             cursor.execute("UPDATE files SET status = 'PENDING'")
+            conn.commit()
             return cursor.rowcount
 
     def save_vector_mapping(self, file_id: int, modality: str, faiss_vector_id: int, vector_dim: int) -> int:

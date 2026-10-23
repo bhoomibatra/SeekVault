@@ -129,3 +129,20 @@ def test_vector_integrity_consistent_when_all_vectors_present(tmp_path):
     assert diag["is_consistent"]
     assert diag["missing_vector_count"] == 0
     assert diag["indexed_count"] == 1
+
+
+def test_human_error_description():
+    """Verify friendly error descriptions for common file indexing failures."""
+    from seekvault.ui.pages.system_health import _human_error_description
+
+    assert "Access denied" in _human_error_description("PermissionError: [Errno 13] Permission denied")
+    assert "password" in _human_error_description("PyPDF2.errors.FileNotDecryptedError: File is password encrypted")
+    assert "empty" in _human_error_description("File is empty (0 bytes)")
+    assert "moved, renamed, or deleted" in _human_error_description("FileNotFoundError: no such file or directory")
+
+
+def test_indexing_status_page_alias():
+    """Verify backwards compatibility alias is callable."""
+    from seekvault.ui.pages.system_health import render_indexing_status_page
+    assert callable(render_indexing_status_page)
+

@@ -1,249 +1,186 @@
 import os
 import streamlit as st
 from pathlib import Path
-from seekvault.config import DB_PATH, INDEX_DIR, DATA_DIR, TEXT_EMBEDDING_MODEL, IMAGE_EMBEDDING_MODEL
+from typing import Optional
+
+from seekvault.config import DB_PATH, INDEX_DIR, DATA_DIR
 from seekvault.extraction.ocr_extractor import OCRExtractor
 from seekvault.database.repository import Repository
 from seekvault.search.engine import SearchEngine
-from seekvault.embeddings.manager import EmbeddingManager
 from seekvault.database.backup import create_backup, restore_backup
 from seekvault.ui.components import inject_design_system
 
 
 def render_settings_page(repo: Repository, search_engine: SearchEngine):
+    """
+    Direct, efficient Settings dashboard.
+    No essays, no machine learning lectures — practical user preferences only.
+    """
     inject_design_system()
 
+    # Clean, concise title
     st.markdown(
         """
-        <div style="margin-bottom: 24px;">
-            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1D4ED8; margin-bottom: 4px;">
-                Infrastructure & Lifecycle Configuration
-            </div>
-            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
-                System Settings & Maintenance
+        <div style="margin-bottom: 16px;">
+            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.65rem; font-weight: 700; color: #15181E; margin: 0 0 4px 0;">
+                Settings
             </h1>
-            <p style="font-size: 0.95rem; color: #4A5160; margin: 0; line-height: 1.5;">
-                Inspect on-device neural models, storage architecture, backup/restore archives, and safe index synchronization.
+            <p style="font-size: 0.88rem; color: #697386; margin: 0;">
+                Application preferences, search behavior, and library maintenance.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # 1. Local AI Models Diagnostics
-    # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
-            Local Neural Embedding Models
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    try:
-        model_diag = EmbeddingManager.get_models_status()
-    except Exception:
-        model_diag = {
-            "offline_mode": True,
-            "cache_dir": str(Path.home() / ".cache" / "huggingface"),
-            "text_model": {"name": TEXT_EMBEDDING_MODEL, "dimension": 384, "initialized": True, "available": True},
-            "image_model": {"name": IMAGE_EMBEDDING_MODEL, "dimension": 512, "initialized": True, "available": True},
-        }
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(
-            f"""
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8;">
-                        TEXT SEMANTIC EMBEDDER
-                    </span>
-                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; color: #065F46;">
-                        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
-                        {'Ready & Loaded' if model_diag['text_model']['initialized'] else 'Standby'}
-                    </span>
-                </div>
-                <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
-                    <code>{model_diag['text_model']['name']}</code>
-                </div>
-                <div style="font-size: 0.82rem; color: #4A5160; line-height: 1.5;">
-                    <div><strong>Dimension:</strong> {model_diag['text_model']['dimension']}-d dense vector (float32)</div>
-                    <div><strong>Engine:</strong> Local CPU via Sentence-Transformers</div>
-                    <div><strong>Quantization / Precision:</strong> FP32 Normalized</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with c2:
-        st.markdown(
-            f"""
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8;">
-                        CROSS-MODAL VISION EMBEDDER
-                    </span>
-                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; color: #065F46;">
-                        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
-                        {'Ready & Loaded' if model_diag['image_model']['initialized'] else 'Standby'}
-                    </span>
-                </div>
-                <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
-                    <code>{model_diag['image_model']['name']}</code>
-                </div>
-                <div style="font-size: 0.82rem; color: #4A5160; line-height: 1.5;">
-                    <div><strong>Dimension:</strong> {model_diag['image_model']['dimension']}-d dense vector (float32)</div>
-                    <div><strong>Engine:</strong> Local CPU via OpenAI CLIP Vision Transformer</div>
-                    <div><strong>Quantization / Precision:</strong> FP32 Normalized</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.caption(f"Cache Location: `{model_diag.get('cache_dir', 'Standard OS Cache')}` • Offline Enforcement: `HF_HUB_OFFLINE=1`")
-
-    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+    c_col1, c_col2 = st.columns([1.1, 1.1], gap="large")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 2. OCR Subsystem Status
+    # COLUMN 1: Search & Scanning Preferences
     # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
-            Optical Character Recognition Subsystem
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    ocr_available = OCRExtractor.is_available()
-    if ocr_available:
+    with c_col1:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #A7F3D0; border-left: 4px solid #059669; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="font-size: 0.88rem; font-weight: 600; color: #065F46;">Tesseract OCR Active</div>
-                <div style="font-size: 0.82rem; color: #374151; margin-top: 2px;">
-                    System parses and indexes textual content from scanned PDF documents, invoices, and image screenshots.
-                </div>
+            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
+                Search Preferences
             </div>
             """,
             unsafe_allow_html=True
         )
-    else:
+
+        with st.form("search_settings_form"):
+            current_mode = repo.get_setting("search_mode", "HYBRID")
+            search_mode = st.radio(
+                "Search Matching",
+                ["HYBRID", "KEYWORD_ONLY"],
+                index=0 if current_mode == "HYBRID" else 1,
+                format_func=lambda m: "Smart Match (Concepts & Keywords)" if m == "HYBRID" else "Exact Words Only",
+            )
+
+            current_limit = int(repo.get_setting("search_results_per_page", "25"))
+            limit_idx = [10, 25, 50].index(current_limit) if current_limit in [10, 25, 50] else 1
+            results_per_page = st.selectbox(
+                "Results per search",
+                [10, 25, 50],
+                index=limit_idx,
+            )
+
+            ocr_active = OCRExtractor.is_available()
+            enable_ocr = st.checkbox(
+                "Read text from screenshots and scans (OCR)",
+                value=repo.get_setting("enable_ocr", "1") == "1",
+                disabled=not ocr_active,
+            )
+
+            show_full_path = st.checkbox(
+                "Always display full folder paths",
+                value=repo.get_setting("show_full_path", "0") == "1",
+            )
+
+            if st.form_submit_button("Save Search Preferences", type="primary", use_container_width=True):
+                repo.set_setting("search_mode", search_mode)
+                repo.set_setting("search_results_per_page", str(results_per_page))
+                repo.set_setting("enable_ocr", "1" if enable_ocr else "0")
+                repo.set_setting("show_full_path", "1" if show_full_path else "0")
+                st.success("Preferences saved.")
+
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-left: 4px solid #64748B; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">OCR Subsystem in Graceful Fallback</div>
-                <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
-                    Tesseract binary not detected on PATH. Visual semantic search operates via CLIP zero-shot multimodal embeddings.
-                </div>
+            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
+                Scanning Rules
             </div>
             """,
             unsafe_allow_html=True
         )
 
-    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+        with st.form("scan_rules_form"):
+            current_max_mb = int(repo.get_setting("max_file_size_mb", "50"))
+            max_size = st.slider("Maximum file size for full search (MB)", 5, 150, current_max_mb, 5)
+
+            rec = st.checkbox(
+                "Scan subfolders automatically",
+                value=repo.get_setting("default_recursive", "1") == "1"
+            )
+            skip_tmp = st.checkbox(
+                "Ignore temporary and lock files (~$, .tmp)",
+                value=repo.get_setting("skip_temp_files", "1") == "1"
+            )
+
+            if st.form_submit_button("Save Scanning Rules", type="primary", use_container_width=True):
+                repo.set_setting("max_file_size_mb", str(max_size))
+                repo.set_setting("default_recursive", "1" if rec else "0")
+                repo.set_setting("skip_temp_files", "1" if skip_tmp else "0")
+                st.success("Rules saved.")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 3. Local Storage Architecture
+    # COLUMN 2: Backup & Library Maintenance
     # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
-            Local Storage Telemetry
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    s1, s2, s3 = st.columns(3)
-    with s1:
+    with c_col2:
         st.markdown(
-            f"""
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
-                    DATABASE PATH
-                </div>
-                <div style="font-size: 0.82rem; color: #15181E; word-break: break-all;">
-                    <code>{DB_PATH}</code>
-                </div>
+            """
+            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
+                Backup & Restore
             </div>
             """,
             unsafe_allow_html=True
         )
-    with s2:
+
         st.markdown(
-            f"""
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
-                    FAISS INDEX DIR
-                </div>
-                <div style="font-size: 0.82rem; color: #15181E; word-break: break-all;">
-                    <code>{INDEX_DIR}</code>
-                </div>
+            """
+            <div style="background:#FFFFFF;border:1px solid #E6E2D8;border-radius:6px;padding:14px;margin-bottom:12px;">
+                <div style="font-size:0.86rem;font-weight:600;color:#15181E;margin-bottom:2px;">Export Catalog Backup</div>
+                <div style="font-size:0.78rem;color:#697386;margin-bottom:10px;">Save your search catalog and settings to a portable .zip file.</div>
             </div>
             """,
             unsafe_allow_html=True
         )
-    with s3:
+        if "latest_backup_path" not in st.session_state:
+            st.session_state.latest_backup_path = None
+
+        if st.button("Generate Backup (.zip)", type="primary", use_container_width=True):
+            bp = create_backup()
+            st.session_state.latest_backup_path = str(bp)
+            st.success(f"Backup created: {Path(bp).name}")
+
+        if st.session_state.latest_backup_path and os.path.exists(st.session_state.latest_backup_path):
+            with open(st.session_state.latest_backup_path, "rb") as bf:
+                b_bytes = bf.read()
+            st.download_button(
+                label=f"Download {Path(st.session_state.latest_backup_path).name}",
+                data=b_bytes,
+                file_name=Path(st.session_state.latest_backup_path).name,
+                mime="application/zip",
+                use_container_width=True
+            )
+
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
         st.markdown(
-            f"""
-            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
-                    VECTOR EMBEDDINGS
-                </div>
-                <div style="font-size: 0.82rem; color: #15181E;">
-                    Text Vectors: <strong>{search_engine.text_index.index.ntotal}</strong><br>
-                    Image Vectors: <strong>{search_engine.image_index.index.ntotal}</strong>
-                </div>
+            """
+            <div style="background:#FFFFFF;border:1px solid #E6E2D8;border-radius:6px;padding:14px;margin-bottom:10px;">
+                <div style="font-size:0.86rem;font-weight:600;color:#15181E;margin-bottom:2px;">Restore from Backup</div>
+                <div style="font-size:0.78rem;color:#697386;margin-bottom:8px;">Restore search data from an existing .zip backup file.</div>
             </div>
             """,
             unsafe_allow_html=True
         )
-
-    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # 4. Backup & Restore Snapshots
-    # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
-            Backup & Vault Snapshot Archives
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        "<p style='font-size: 0.88rem; color: #4A5160; margin-top: 0;'>Create lightweight portable snapshots of your SeekVault database and search vector indices. Snapshots do not alter or move your source files.</p>",
-        unsafe_allow_html=True
-    )
-
-    bc1, bc2 = st.columns(2)
-    with bc1:
-        st.markdown("**Create Backup Snapshot:**")
-        if st.button("Export Vault Snapshot", type="primary"):
-            backup_path = create_backup()
-            st.success(f"Backup created successfully:\n`{backup_path}`")
-
-    with bc2:
-        st.markdown("**Restore from Backup Snapshot:**")
-        backup_input = st.text_input(
-            "Backup Archive Path (.zip):",
-            placeholder=r"e.g., C:\Path\To\seekvault_backup_20261023.zip",
-            key="restore_input_path"
+        uploaded_backup = st.file_uploader(
+            "Upload backup .zip file",
+            type=["zip"],
+            key="file_uploader_backup",
+            label_visibility="collapsed"
         )
-        if st.button("Restore Snapshot", key="btn_restore"):
-            if not backup_input.strip():
-                st.error("Please provide the full path to a valid backup .zip file.")
-            else:
-                p = Path(backup_input.strip())
-                ok, msg = restore_backup(p)
+        if uploaded_backup is not None:
+            if st.button("Restore from Uploaded Backup", type="primary", use_container_width=True):
+                tmp_dir = DATA_DIR / "backups"
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+                tmp_target = tmp_dir / uploaded_backup.name
+                with open(tmp_target, "wb") as f_out:
+                    f_out.write(uploaded_backup.getbuffer())
+                ok, msg = restore_backup(tmp_target)
                 if ok:
-                    # Reload indices into memory
                     search_engine.text_index.load()
                     search_engine.image_index.load()
                     st.success(msg)
@@ -251,50 +188,77 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
                 else:
                     st.error(msg)
 
-    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+        restore_path = st.text_input(
+            "Or enter backup file path",
+            placeholder=r"C:\path\to\backup.zip",
+            key="input_restore_zip",
+        )
+        if st.button("Restore from Path", key="btn_restore_action", use_container_width=True):
+            if not restore_path.strip():
+                st.warning("Please specify the path to a .zip backup.")
+            else:
+                ok, msg = restore_backup(Path(restore_path.strip()))
+                if ok:
+                    search_engine.text_index.load()
+                    search_engine.image_index.load()
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # 5. Maintenance & Safe Index Reset (with Confirmation)
-    # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
-            Maintenance & Safe Index Reset
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-    if "pending_index_reset" not in st.session_state:
-        st.session_state.pending_index_reset = False
-
-    if not st.session_state.pending_index_reset:
         st.markdown(
-            "<p style='font-size: 0.88rem; color: #4A5160; margin-top: 0;'>Clear all FAISS vector indices and synchronize database statuses back to <code>PENDING</code> for a fresh re-index.</p>",
+            """
+            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
+                Index Maintenance
+            </div>
+            """,
             unsafe_allow_html=True
         )
-        if st.button("Reset Vector Search Indices", type="secondary"):
-            st.session_state.pending_index_reset = True
-            st.rerun()
-    else:
-        st.warning(
-            "Confirm Index Reset\n\n"
-            "Are you sure you want to reset all search vectors?\n\n"
-            "- All FAISS dense vector files (`text_index.faiss`, `image_index.faiss`) will be cleared.\n"
-            "- SQLite file records will be synchronized to `PENDING` (preventing index drift).\n"
-            "- **Your original source files on disk will strictly NOT be deleted or modified.**\n"
-            "- You can re-index your authorized folders anytime from the File Library or System Health tab."
-        )
-        r_yes, r_no, _ = st.columns([1.5, 1, 3])
-        with r_yes:
-            if st.button("Yes, Safely Reset Indices", type="primary", key="confirm_reset_indices"):
-                search_engine.text_index.reset()
-                search_engine.image_index.reset()
-                affected = repo.reset_all_search_indices()
-                st.session_state.pending_index_reset = False
-                st.success(f"Indices reset. {affected} file(s) synchronized to PENDING. Source files on disk remain untouched.")
+
+        if "confirm_reset_mode" not in st.session_state:
+            st.session_state.confirm_reset_mode = False
+
+        if not st.session_state.confirm_reset_mode:
+            st.markdown(
+                """
+                <div style="font-size:0.80rem;color:#697386;margin-bottom:8px;">
+                    Clears search index data so files can be re-indexed. Original files on disk are never touched.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button("Reset Search Index", type="secondary", use_container_width=True):
+                st.session_state.confirm_reset_mode = True
                 st.rerun()
-        with r_no:
-            if st.button("Cancel", key="cancel_reset_indices"):
-                st.session_state.pending_index_reset = False
-                st.rerun()
+        else:
+            st.markdown(
+                """
+                <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:12px;margin-bottom:10px;">
+                    <div style="font-size:0.86rem;font-weight:600;color:#B42318;margin-bottom:2px;">Confirm Reset?</div>
+                    <div style="font-size:0.80rem;color:#4A5160;">All search records will be cleared for re-indexing. Original documents remain intact.</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            r1, r2 = st.columns(2)
+            with r1:
+                if st.button("Confirm Reset", type="primary", key="btn_final_reset", use_container_width=True):
+                    search_engine.text_index.reset()
+                    search_engine.image_index.reset()
+                    affected = repo.reset_all_search_indices()
+                    st.session_state.confirm_reset_mode = False
+                    st.success(f"Reset {affected} files.")
+                    st.rerun()
+            with r2:
+                if st.button("Cancel", key="btn_cancel_reset", use_container_width=True):
+                    st.session_state.confirm_reset_mode = False
+                    st.rerun()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Footer: Compact System Info
+    # ─────────────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+    with st.expander("Storage Info", expanded=False):
+        st.caption(f"Database: `{DB_PATH}` &nbsp;•&nbsp; Index Directory: `{INDEX_DIR}` &nbsp;•&nbsp; Status: 100% Local")
