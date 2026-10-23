@@ -89,7 +89,7 @@ st.markdown("""
         color: white;
     }
 </style>
-""", unsafe_allow_headers=True)
+""", unsafe_allow_html=True)
 
 # Helper function to format bytes into human-readable size
 def format_size(bytes_size: int) -> str:
@@ -143,7 +143,7 @@ with st.sidebar:
 
 # 1. SEMANTIC SEARCH VIEW
 if navigation == "🔍 Semantic Search":
-    st.markdown('<div class="app-header"><h1>🔍 Multimodal Semantic Search</h1><p>Search across authorized documents and images by contextual meaning</p></div>', unsafe_allow_headers=True)
+    st.markdown('<div class="app-header"><h1>🔍 Multimodal Semantic Search</h1><p>Search across authorized documents and images by contextual meaning</p></div>', unsafe_allow_html=True)
     
     query_input = st.text_input(
         "Enter Natural Language Query",
@@ -188,7 +188,7 @@ if navigation == "🔍 Semantic Search":
                         <p><strong>Path:</strong> <code>{res['file_path']}</code></p>
                         <p><strong>Category:</strong> {res['file_type'].upper()} | <strong>Extension:</strong> {res['file_extension']} | <strong>Size:</strong> {format_size(res['file_size'])} | <strong>Privacy:</strong> {tier_badge}</p>
                     </div>
-                    """, unsafe_allow_headers=True)
+                    """, unsafe_allow_html=True)
                     
                     if res["matched_text"]:
                         st.markdown("**Matched Passage Snippet:**")
@@ -197,7 +197,7 @@ if navigation == "🔍 Semantic Search":
 
 # 2. DASHBOARD VIEW
 elif navigation == "📊 Dashboard":
-    st.markdown('<div class="app-header"><h1>📊 SeekVault Dashboard</h1><p>System metrics, vector store size, and privacy tier breakdown</p></div>', unsafe_allow_headers=True)
+    st.markdown('<div class="app-header"><h1>📊 SeekVault Dashboard</h1><p>System metrics, vector store size, and privacy tier breakdown</p></div>', unsafe_allow_html=True)
     
     stats = get_dashboard_stats()
     indexed_files = get_indexed_files(limit=1000)
@@ -215,28 +215,28 @@ elif navigation == "📊 Dashboard":
             <div class="metric-label">Authorized Folders</div>
             <div class="metric-value">{stats['total_folders']}</div>
         </div>
-        """, unsafe_allow_headers=True)
+        """, unsafe_allow_html=True)
     with col2:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Total Indexed Files</div>
             <div class="metric-value">{stats['total_files']}</div>
         </div>
-        """, unsafe_allow_headers=True)
+        """, unsafe_allow_html=True)
     with col3:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">FAISS Text Vectors</div>
             <div class="metric-value">{faiss_mgr.index.ntotal}</div>
         </div>
-        """, unsafe_allow_headers=True)
+        """, unsafe_allow_html=True)
     with col4:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">🟢 FULL / 🟡 RED / 🔴 META</div>
             <div class="metric-value">{tier_counts['FULL']} / {tier_counts['REDACTED']} / {tier_counts['METADATA_ONLY']}</div>
         </div>
-        """, unsafe_allow_headers=True)
+        """, unsafe_allow_html=True)
         
     st.markdown("---")
     
@@ -259,7 +259,7 @@ elif navigation == "📊 Dashboard":
 
 # 3. AUTHORIZED FOLDERS UI
 elif navigation == "📂 Authorized Folders":
-    st.markdown('<div class="app-header"><h1>📂 Folder Authorization Manager</h1><p>Manage folder permissions & trigger privacy vector indexing</p></div>', unsafe_allow_headers=True)
+    st.markdown('<div class="app-header"><h1>📂 Folder Authorization Manager</h1><p>Manage folder permissions & trigger privacy vector indexing</p></div>', unsafe_allow_html=True)
     
     st.subheader("➕ Add New Authorized Directory")
     with st.form("add_folder_form"):
@@ -312,7 +312,7 @@ elif navigation == "📂 Authorized Folders":
 
 # 4. EXTRACTION INSPECTOR & INDEXED FILES UI
 elif navigation == "🔬 Extraction & Files":
-    st.markdown('<div class="app-header"><h1>🔬 Extraction & Privacy Registry</h1><p>View detected files, stored representation, and privacy tiers</p></div>', unsafe_allow_headers=True)
+    st.markdown('<div class="app-header"><h1>🔬 Extraction & Privacy Registry</h1><p>View detected files, stored representation, and privacy tiers</p></div>', unsafe_allow_html=True)
     
     filter_col1, filter_col2, filter_col3 = st.columns([1, 1, 2])
     with filter_col1:
@@ -351,7 +351,7 @@ elif navigation == "🔬 Extraction & Files":
 
 # 5. PRIVACY AUDIT & SETTINGS UI
 elif navigation == "🛡️ Privacy & Audit":
-    st.markdown('<div class="app-header"><h1>🛡️ Privacy Audit & Redaction Inspector</h1><p>Inspect entity detection logs, sensitivity scores, and in-memory redactions</p></div>', unsafe_allow_headers=True)
+    st.markdown('<div class="app-header"><h1>🛡️ Privacy Audit & Redaction Inspector</h1><p>Inspect entity detection logs, sensitivity scores, and in-memory redactions</p></div>', unsafe_allow_html=True)
     
     logs = get_privacy_audit_logs(limit=100)
     

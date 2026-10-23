@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SeekVault — The Private Search Instrument (Visual Proposal)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Palette: "The Private Search Instrument" (Warm Parchment & Deep Ink) */
+    --canvas-bg: #F7F6F2;
+    --canvas-subtle: #F0EEE8;
+    --surface-card: #FFFFFF;
+    --surface-hover: #FCFBF9;
+    --border-hairline: #E6E2D8;
+    --border-strong: #D1CBC0;
+    --border-focus: #1D4ED8;
+    
+    /* Typography Inks */
+    --ink-primary: #15181E;
+    --ink-secondary: #4A5160;
+    --ink-muted: #828A98;
+    --ink-subtle: #A6AEBA;
+    
+    /* Accents (Used with strict surgical restraint) */
+    --cobalt-primary: #1D4ED8;
+    --cobalt-tint: #EFF4FE;
+    --cobalt-border: #BFDBFE;
+    --acid-lime: #4D7C0F;
+    --acid-lime-tint: #F7FEE7;
+    --amber-tag: #92400E;
+    --amber-tint: #FEF3C7;
+    --emerald-tag: #065F46;
+    --emerald-tint: #ECFDF5;
+    
+    /* Shadows & Radii */
+    --shadow-soft: 0 1px 3px rgba(22, 25, 30, 0.03), 0 8px 24px rgba(22, 25, 30, 0.03);
+    --shadow-focus: 0 0 0 3px rgba(29, 78, 216, 0.12);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-full: 9999px;
+    
+    /* Fonts */
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-serif: 'Newsreader', Georgia, serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  [data-theme="dark"] {
+    --canvas-bg: #0E1116;
+    --canvas-subtle: #151921;
+    --surface-card: #1A1F29;
+    --surface-hover: #212734;
+    --border-hairline: #29303F;
+    --border-strong: #3D465A;
+    --border-focus: #3B82F6;
+    --ink-primary: #F3F4F6;
+    --ink-secondary: #9CA3AF;
+    --ink-muted: #6B7280;
+    --ink-subtle: #4B5563;
+    --cobalt-primary: #3B82F6;
+    --cobalt-tint: rgba(59, 130, 246, 0.12);
+    --cobalt-border: rgba(59, 130, 246, 0.3);
+    --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    background-color: var(--canvas-bg);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Sample Data Notice Bar */
+  .proposal-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    background: #1E293B;
+    color: #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.3px;
+    z-index: 100;
+  }
+  .proposal-banner .tag {
+    background: #3B82F6;
+    color: #FFFFFF;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 10px;
+  }
+
+  .app-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    padding-top: 28px;
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────────
+     1. MINIMAL NAVIGATION RAIL
+     ────────────────────────────────────────────────────────────────────────── */
+  .nav-rail {
+    width: 230px;
+    min-width: 230px;
+    background: var(--canvas-bg);
+    border-right: 1px solid var(--border-hairline);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 24px 16px 20px 16px;
+    user-select: none;
+  }
+
+  .brand-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px 24px 10px;
+    border-bottom: 1px solid var(--border-hairline);
+    margin-bottom: 20px;
+  }
+  .brand-emblem {
+    width: 28px;
+    height: 28px;
+    background: var(--ink-primary);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+  }
+  .brand-emblem svg {
+    width: 16px;
+    height: 16px;
+  }
+  .brand-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--ink-primary);
+  }
+  .brand-sub {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    letter-spacing: 0.2px;
+  }
+
+  .nav-items {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+  .nav-link svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+    transition: stroke 0.15s ease;
+  }
+  .nav-link:hover {
+    background: var(--canvas-subtle);
+    color: var(--ink-primary);
+  }
+  .nav-link.active {
+    background: var(--surface-card);
+    color: var(--cobalt-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    border: 1px solid var(--border-hairline);
+  }
+  .nav-link.active svg {
+    stroke: var(--cobalt-primary);
+  }
+
+  .nav-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-hairline);
+  }
+  .offline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--ink-secondary);
+    padding: 6px 10px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-sm);
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────────
+     2. MAIN WORKSPACE CANVAS
+     ────────────────────────────────────────────────────────────────────────── */
+  .main-canvas {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--canvas-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 48px;
+  }
+
+  .content-column {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* Hero Search Header */
+  .search-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .search-lead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .search-lead-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+    color: var(--ink-primary);
+  }
+  .search-lead-hint {
+    font-size: 12.5px;
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+  }
+
+  /* Hero Command Input */
+  .search-box-container {
+    position: relative;
+    width: 100%;
+    background: var(--surface-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    align-items: center;
+    padding: 4px 18px;
+    transition: all 0.18s ease;
+  }
+  .search-box-container:focus-within {
+    border-color: var(--border-focus);
+    box-shadow: var(--shadow-focus);
+  }
+  .search-box-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--ink-muted);
+    margin-right: 14px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    flex-shrink: 0;
+  }
+  .search-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    color: var(--ink-primary);
+    padding: 14px 0;
+    line-height: 1.4;
+  }
+  .search-input::placeholder {
+    color: var(--ink-subtle);
+    font-weight: 400;
+  }
+  .kbd-shortcut {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border: 1px solid var(--border-hairline);
+    background: var(--canvas-subtle);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-weight: 500;
+  }
+
+  /* Compact Filter Bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 4px 2px;
+  }
+  .filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ink-muted);
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .filter-pill:hover {
+    border-color: var(--border-strong);
+    color: var(--ink-primary);
+  }
+  .filter-pill.active {
+    background: var(--cobalt-tint);
+    border-color: var(--cobalt-border);
+    color: var(--cobalt-primary);
+    font-weight: 600;
+  }
+
+  /* Results Stream Header */
+  .stream-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-hairline);
+    margin-top: 6px;
+  }
+  .stream-count {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stream-timing {
+    color: var(--ink-subtle);
+  }
+
+  /* Document Cards */
+  .results-stream {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .doc-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    box-shadow: 0 1px 2px rgba(22, 25, 30, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all 0.15s ease;
+  }
+  .doc-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 16px rgba(22, 25, 30, 0.04);
+    transform: translateY(-1px);
+  }
+
+  .doc-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .doc-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .format-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+  .format-pdf { background: #FEE2E2; color: #991B1B; }
+  .format-docx { background: #DBEAFE; color: #1E40AF; }
+  .format-txt { background: #F3F4F6; color: #374151; }
+  .format-img { background: #EDE9FE; color: #5B21B6; }
+
+  .doc-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .doc-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .badge {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .badge-hybrid { background: var(--cobalt-tint); color: var(--cobalt-primary); }
+  .badge-keyword { background: #ECFEFF; color: #0E7490; }
+  .badge-semantic { background: #FAF5FF; color: #7E22CE; }
+  .badge-tier { background: var(--emerald-tint); color: var(--emerald-tag); border: 1px solid rgba(5, 150, 105, 0.2); }
+  .badge-redacted { background: var(--amber-tint); color: var(--amber-tag); border: 1px solid rgba(217, 119, 6, 0.2); }
+
+  .doc-snippet {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+    background: var(--canvas-subtle);
+    border-left: 2px solid var(--border-strong);
+    padding: 8px 12px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-family: var(--font-sans);
+  }
+  .doc-snippet mark {
+    background: #FEF08A;
+    color: #854D0E;
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+
+  .doc-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 4px;
+    font-size: 11.5px;
+    color: var(--ink-muted);
+  }
+  .doc-path {
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    max-width: 450px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .doc-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.85;
+    transition: opacity 0.15s ease;
+  }
+  .doc-card:hover .doc-actions {
+    opacity: 1;
+  }
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    background: transparent;
+    border: 1px solid var(--border-hairline);
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .action-btn:hover {
+    background: var(--canvas-subtle);
+    color: var(--ink-primary);
+    border-color: var(--border-strong);
+  }
+  .action-btn svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+  }
+
+  /* Empty / Prompt Starter State */
+  .starter-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 48px 20px;
+    background: var(--surface-card);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    gap: 16px;
+  }
+  .starter-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--canvas-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-secondary);
+  }
+  .starter-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+  }
+  .starter-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink-primary);
+  }
+  .starter-body {
+    font-size: 13.5px;
+    color: var(--ink-secondary);
+    max-width: 440px;
+    line-height: 1.5;
+  }
+  .sample-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .chip {
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-hairline);
+    background: var(--canvas-bg);
+    font-size: 12px;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .chip:hover {
+    border-color: var(--cobalt-border);
+    color: var(--cobalt-primary);
+    background: var(--cobalt-tint);
+  }
+</style>
+</head>
+<body data-theme="light">
+
+<div class="proposal-banner">
+  <div>
+    <span class="tag">VISUAL PROPOSAL PREVIEW</span>
+    <span>SeekVault Creative Direction: "The Private Search Instrument" (Sample Data Only)</span>
+  </div>
+  <div>
+    <button onclick="toggleTheme()" style="background:transparent; border:1px solid #475569; color:#94A3B8; padding:2px 8px; border-radius:4px; font-size:10px; cursor:pointer;">
+      Toggle Theme
+    </button>
+  </div>
+</div>
+
+<div class="app-layout">
+
+  <!-- ──────────────────────────────────────────────────────────────────────────
+       MINIMAL EDITORIAL NAVIGATION RAIL (No emojis, crisp SVG glyphs)
+       ────────────────────────────────────────────────────────────────────────── -->
+  <aside class="nav-rail">
+    <div>
+      <div class="brand-block">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+        </div>
+        <div>
+          <div class="brand-title">SeekVault</div>
+          <div class="brand-sub">LOCAL ENGINE v1.0</div>
+        </div>
+      </div>
+
+      <ul class="nav-items">
+        <li>
+          <a class="nav-link active" onclick="setNav(this, 'search')">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Search</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" onclick="setNav(this, 'library')">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>File Library</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" onclick="setNav(this, 'privacy')">
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Privacy & Storage</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" onclick="setNav(this, 'health')">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>System Health</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" onclick="setNav(this, 'duplicates')">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>
+            <span>Duplicates & Revisions</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" onclick="setNav(this, 'settings')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="nav-footer">
+      <div class="offline-badge">
+        <span class="status-dot"></span>
+        <span>Local Zero-Trust Verified</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ──────────────────────────────────────────────────────────────────────────
+       HERO SEARCH CANVAS
+       ────────────────────────────────────────────────────────────────────────── -->
+  <main class="main-canvas">
+    <div class="content-column">
+
+      <!-- Hero Header & Input -->
+      <section class="search-hero">
+        <div class="search-lead">
+          <h1 class="search-lead-title">Search Documents & Media</h1>
+          <span class="search-lead-hint">Indexed: 14 files across 4 authorized folders</span>
+        </div>
+
+        <div class="search-box-container">
+          <svg class="search-box-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input 
+            type="text" 
+            class="search-input" 
+            id="queryInput"
+            placeholder="Search concepts, passages, or exact terms (e.g. 'candidate elimination algorithm', 'database BCNF', 'red car')..." 
+            oninput="handleSearch(this.value)"
+            value="notes about candidate elimination algorithm"
+          />
+          <span class="kbd-shortcut">ESC to clear</span>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="filter-bar">
+          <div class="filter-pills">
+            <span class="pill-label">Mode:</span>
+            <button class="filter-pill active" onclick="setMode(this, 'hybrid')">Hybrid (RRF)</button>
+            <button class="filter-pill" onclick="setMode(this, 'semantic')">Semantic</button>
+            <button class="filter-pill" onclick="setMode(this, 'keyword')">Keyword</button>
+          </div>
+
+          <div class="filter-pills">
+            <span class="pill-label">Type:</span>
+            <button class="filter-pill active" onclick="setType(this, 'all')">All</button>
+            <button class="filter-pill" onclick="setType(this, 'doc')">Documents</button>
+            <button class="filter-pill" onclick="setType(this, 'img')">Images</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Stream Header -->
+      <div class="stream-header" id="streamHeader">
+        <div class="stream-count">
+          <span>Found 3 relevant files</span>
+          <span>•</span>
+          <span class="stream-timing">Evaluated in 168ms (local CPU)</span>
+        </div>
+        <div style="font-size: 11.5px; font-family: var(--font-mono); color: var(--ink-muted);">
+          Scope: All Authorized Folders
+        </div>
+      </div>
+
+      <!-- Results Container -->
+      <section class="results-stream" id="resultsContainer">
+
+        <!-- Result 1 -->
+        <article class="doc-card">
+          <div class="doc-top">
+            <div class="doc-identity">
+              <span class="format-badge format-pdf">PDF</span>
+              <h2 class="doc-name">ML_Unit3_Notes.pdf</h2>
+            </div>
+            <div class="doc-badges">
+              <span class="badge badge-hybrid">Both Matches</span>
+              <span class="badge badge-tier">FULL TIER</span>
+            </div>
+          </div>
+          <p class="doc-snippet">
+            ...The <mark>candidate elimination algorithm</mark> computes the version space containing all hypotheses consistent with the training examples. It iteratively shrinks the general boundary G and expands the specific boundary S...
+          </p>
+          <div class="doc-meta-row">
+            <span class="doc-path">C:\Users\...\sample_data\authorized_academic\ML_Unit3_Notes.pdf</span>
+            <div class="doc-actions">
+              <span style="font-family: var(--font-mono); font-size: 11px; margin-right: 4px;">42.8 KB • Oct 23</span>
+              <button class="action-btn" title="Open in default application">
+                <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <span>Open</span>
+              </button>
+              <button class="action-btn" title="Highlight in Windows Explorer">
+                <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>Reveal</span>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Result 2 -->
+        <article class="doc-card">
+          <div class="doc-top">
+            <div class="doc-identity">
+              <span class="format-badge format-docx">DOCX</span>
+              <h2 class="doc-name">DBMS_Lecture_4.docx</h2>
+            </div>
+            <div class="doc-badges">
+              <span class="badge badge-semantic">Semantic</span>
+              <span class="badge badge-tier">FULL TIER</span>
+            </div>
+          </div>
+          <p class="doc-snippet">
+            ...Discussion of relational database schema design, functional dependencies, and lossless join decomposition into Boyce-Codd Normal Form (BCNF)...
+          </p>
+          <div class="doc-meta-row">
+            <span class="doc-path">C:\Users\...\sample_data\authorized_academic\DBMS_Lecture_4.docx</span>
+            <div class="doc-actions">
+              <span style="font-family: var(--font-mono); font-size: 11px; margin-right: 4px;">34.1 KB • Oct 22</span>
+              <button class="action-btn">
+                <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <span>Open</span>
+              </button>
+              <button class="action-btn">
+                <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>Reveal</span>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Result 3 -->
+        <article class="doc-card">
+          <div class="doc-top">
+            <div class="doc-identity">
+              <span class="format-badge format-txt">TXT</span>
+              <h2 class="doc-name">Student_Admission_Form.pdf</h2>
+            </div>
+            <div class="doc-badges">
+              <span class="badge badge-keyword">Keyword</span>
+              <span class="badge badge-redacted">REDACTED TIER</span>
+            </div>
+          </div>
+          <p class="doc-snippet">
+            ...Applicant records: Name: John Doe, Email: <mark>&lt;EMAIL_5b821a&gt;</mark>, Phone: <mark>&lt;PHONE_c93140&gt;</mark>. All direct identifiers sanitized before vector generation...
+          </p>
+          <div class="doc-meta-row">
+            <span class="doc-path">C:\Users\...\sample_data\authorized_personal\Student_Admission_Form.pdf</span>
+            <div class="doc-actions">
+              <span style="font-family: var(--font-mono); font-size: 11px; margin-right: 4px;">18.5 KB • Oct 21</span>
+              <button class="action-btn">
+                <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <span>Open</span>
+              </button>
+              <button class="action-btn">
+                <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>Reveal</span>
+              </button>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Empty / Starter Guidance (Hidden when results exist, shown when cleared) -->
+      <div class="starter-state" id="starterState" style="display: none;">
+        <div class="starter-icon">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3 class="starter-title">Search your local vault by conceptual meaning</h3>
+        <p class="starter-body">
+          SeekVault indexes your files locally using neural embeddings and keyword indices. Try searching for concepts, questions, or exact terms.
+        </p>
+        <div class="sample-chips">
+          <button class="chip" onclick="applySample('notes about candidate elimination algorithm')">Candidate Elimination Algorithm</button>
+          <button class="chip" onclick="applySample('database relational normalization forms BCNF')">Database Normalization BCNF</button>
+          <button class="chip" onclick="applySample('red car parked near a building')">Red Car Parked Near Building</button>
+          <button class="chip" onclick="applySample('screenshot showing java error or stack trace')">Java Error Screenshot</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+  function handleSearch(val) {
+    const resultsContainer = document.getElementById('resultsContainer');
+    const starterState = document.getElementById('starterState');
+    const streamHeader = document.getElementById('streamHeader');
+
+    if (!val || val.trim().length === 0) {
+      resultsContainer.style.display = 'none';
+      streamHeader.style.display = 'none';
+      starterState.style.display = 'flex';
+    } else {
+      resultsContainer.style.display = 'flex';
+      streamHeader.style.display = 'flex';
+      starterState.style.display = 'none';
+    }
+  }
+
+  function applySample(query) {
+    const input = document.getElementById('queryInput');
+    input.value = query;
+    handleSearch(query);
+  }
+
+  function setMode(btn, mode) {
+    btn.parentElement.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function setType(btn, type) {
+    btn.parentElement.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function setNav(btn, page) {
+    document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function toggleTheme() {
+    const body = document.body;
+    const current = body.getAttribute('data-theme');
+    body.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const input = document.getElementById('queryInput');
+      input.value = '';
+      handleSearch('');
+    }
+  });
+</script>
+</body>
+</html>

@@ -88,47 +88,135 @@ def format_file_size(bytes_size: int) -> str:
         return f"{bytes_size / (1024 * 1024):.2f} MB"
 
 def inject_design_system() -> None:
-    """Inject custom Obsidian Slate design tokens & card styles into Streamlit."""
+    """Inject custom 'Private Search Instrument' design tokens & styles into Streamlit."""
     custom_css = """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
         :root {
-            --bg-base: #0B0F17;
-            --bg-surface: #111827;
-            --bg-card: #182234;
-            --bg-card-hover: #1E2B42;
-            --border-subtle: #24324D;
-            --border-focus: #6366F1;
-            --accent: #6366F1;
-            --accent-hover: #4F46E5;
-            --text-primary: #F3F4F6;
-            --text-secondary: #9CA3AF;
-            --text-muted: #6B7280;
+            /* Warm Parchment & Deep Ink Palette ("The Private Search Instrument") */
+            --canvas-bg: #F7F6F2;
+            --canvas-subtle: #F0EEE8;
+            --surface-card: #FFFFFF;
+            --surface-hover: #FCFBF9;
+            --border-hairline: #E6E2D8;
+            --border-strong: #D1CBC0;
+            --border-focus: #1D4ED8;
+            --ink-primary: #15181E;
+            --ink-secondary: #4A5160;
+            --ink-muted: #828A98;
+            --cobalt-primary: #1D4ED8;
+            --cobalt-tint: #EFF4FE;
+            --cobalt-border: #BFDBFE;
+
+            /* Legacy token aliases for backward compatibility */
+            --bg-base: #F7F6F2;
+            --bg-surface: #F0EEE8;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #FCFBF9;
+            --border-subtle: #E6E2D8;
+            --text-primary: #15181E;
+            --text-secondary: #4A5160;
+            --text-muted: #828A98;
+            --accent: #1D4ED8;
         }
 
-        /* Search hero card styling */
+        /* Streamlit Global Overrides */
+        .stApp {
+            background-color: var(--canvas-bg) !important;
+            color: var(--ink-primary) !important;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+        }
+
+        /* Sidebar Styling */
+        [data-testid="stSidebar"] {
+            background-color: #F2EFEB !important;
+            border-right: 1px solid var(--border-hairline) !important;
+        }
+
+        /* Hero Document Card ("The Private Search Instrument") */
+        .instrument-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border-hairline);
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-bottom: 14px;
+            box-shadow: 0 1px 3px rgba(22, 25, 30, 0.03);
+            transition: all 0.15s ease-in-out;
+        }
+        .instrument-card:hover {
+            border-color: var(--border-strong);
+            box-shadow: 0 6px 20px rgba(22, 25, 30, 0.05);
+            transform: translateY(-1px);
+        }
+
+        /* Document Format Emblems */
+        .format-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.70rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .format-pdf { background: #FEE2E2; color: #991B1B; }
+        .format-docx { background: #DBEAFE; color: #1E40AF; }
+        .format-txt { background: #F3F4F6; color: #374151; }
+        .format-img { background: #EDE9FE; color: #5B21B6; }
+
+        /* Real Passage Snippet Box */
+        .instrument-snippet {
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: var(--ink-secondary);
+            background: var(--canvas-subtle);
+            border-left: 3px solid var(--border-strong);
+            padding: 9px 13px;
+            border-radius: 0 6px 6px 0;
+            margin: 10px 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .instrument-snippet mark {
+            background: #FEF08A;
+            color: #854D0E;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        /* Metadata Line */
+        .instrument-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--ink-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+        }
+
+        /* Legacy compatibility */
         .seekvault-search-card {
-            background-color: #182234;
-            border: 1px solid #24324D;
+            background-color: #FFFFFF;
+            border: 1px solid #E6E2D8;
             border-radius: 10px;
             padding: 16px 20px;
             margin-bottom: 14px;
+            box-shadow: 0 1px 3px rgba(22, 25, 30, 0.03);
             transition: all 0.2s ease-in-out;
         }
-        .seekvault-search-card:hover {
-            border-color: #6366F1;
-            background-color: #1E2B42;
-            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
-        }
-
-        /* Highlight chip for snippets */
         .seekvault-snippet-box {
-            background-color: #0F172A;
-            border-left: 3px solid #6366F1;
+            background-color: #F0EEE8;
+            border-left: 3px solid #1D4ED8;
             padding: 10px 14px;
             border-radius: 4px;
             font-family: 'JetBrains Mono', Consolas, monospace;
             font-size: 0.88rem;
-            color: #E2E8F0;
+            color: #15181E;
             line-height: 1.5;
             margin: 8px 0;
             white-space: pre-wrap;

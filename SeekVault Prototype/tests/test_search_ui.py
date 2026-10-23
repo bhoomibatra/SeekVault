@@ -103,3 +103,57 @@ def test_search_engine_hybrid_keyword_modes(tmp_path):
     # 2. Filter rejection for wrong folder
     fts_empty = repo.fts_search_content("governance", folder_ids=[99999])
     assert fts_empty == []
+
+
+def test_private_search_instrument_format_badges():
+    """Verify format emblems render expected badges for PDF, DOCX, TXT, IMG."""
+    from seekvault.ui.pages.search import _get_format_badge
+
+    pdf_badge = _get_format_badge(".pdf")
+    assert "format-pdf" in pdf_badge
+    assert "PDF" in pdf_badge
+
+    docx_badge = _get_format_badge(".docx")
+    assert "format-docx" in docx_badge
+    assert "DOCX" in docx_badge
+
+    txt_badge = _get_format_badge(".txt")
+    assert "format-txt" in txt_badge
+    assert "TXT" in txt_badge
+
+    img_badge = _get_format_badge(".png")
+    assert "format-img" in img_badge
+    assert "IMG" in img_badge
+
+
+def test_private_search_instrument_snippet_highlighting():
+    """Verify snippet highlighting inserts <mark> tags around query terms."""
+    from seekvault.ui.pages.search import _format_snippet
+
+    raw = "The candidate elimination algorithm computes the version space."
+    highlighted = _format_snippet(raw, "candidate elimination")
+    assert "<mark>candidate</mark>" in highlighted.lower()
+    assert "<mark>elimination</mark>" in highlighted.lower()
+
+    # Pre-existing <mark> tags from FTS5 should be preserved
+    fts_raw = "Testing <mark>governance</mark> protocol"
+    assert _format_snippet(fts_raw, "governance") == fts_raw
+
+
+def test_search_page_rendering_contract():
+    """Verify render_search_page executes cleanly with empty or populated repositories."""
+    from seekvault.ui.pages.search import render_search_page
+
+    mock_engine = MagicMock(spec=SearchEngine)
+    mock_repo = MagicMock(spec=Repository)
+    mock_engine.repository = mock_repo
+
+    # Case A: 0 files indexed -> displays truthful empty state
+    mock_repo.get_dashboard_stats.return_value = {"total_files": 0}
+    render_search_page(mock_engine)
+
+    # Case B: files indexed -> renders input and controls
+    mock_repo.get_dashboard_stats.return_value = {"total_files": 10}
+    mock_repo.get_authorized_folders.return_value = []
+    render_search_page(mock_engine)
+
