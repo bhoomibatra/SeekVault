@@ -1,0 +1,13 @@
+**/data_storage/
+**/data_storage_backup/
+**/scratch_*
+*.db
+*.sqlite3
+*.faiss
+.env
+.venv
+venv/
+__pycache__/
+*.pyc
+.git
+.pytest_cache
