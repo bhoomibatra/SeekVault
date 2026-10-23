@@ -271,6 +271,18 @@ def init_db(conn: sqlite3.Connection, db_path: Optional[Path] = None) -> None:
     else:
         logger.debug("Schema is up to date at version %d.", CURRENT_SCHEMA_VERSION)
 
+    # Defensive self-healing: ensure critical columns exist regardless of recorded version
+    file_cols = [row[1] for row in conn.execute("PRAGMA table_info(files)").fetchall()]
+    if "error_detail" not in file_cols:
+        conn.execute("ALTER TABLE files ADD COLUMN error_detail TEXT")
+        logger.info("Self-healing: added missing files.error_detail column.")
+
+    vm_cols = [row[1] for row in conn.execute("PRAGMA table_info(version_members)").fetchall()]
+    if "is_dismissed" not in vm_cols:
+        conn.execute("ALTER TABLE version_members ADD COLUMN is_dismissed INTEGER DEFAULT 0")
+        logger.info("Self-healing: added missing version_members.is_dismissed column.")
+
+
 
 
 def _apply_migration_v2(conn: sqlite3.Connection) -> None:
