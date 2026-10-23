@@ -296,7 +296,12 @@ class IngestionPipeline:
             self.repository.delete_file_by_path(file_path_str)
             logger.info(f"Removed file from SeekVault: {file_path_str}")
 
-    def scan_folder(self, folder_path: str, is_recursive: bool = True) -> int:
+    def scan_folder(
+        self,
+        folder_path: str,
+        is_recursive: bool = True,
+        progress_callback: Optional[Any] = None
+    ) -> int:
         """Scan and ingest all supported files within an authorized folder."""
         count = 0
         norm_dir = Path(folder_path)
@@ -316,12 +321,11 @@ class IngestionPipeline:
             logger.error(f"Error enumerating directory {folder_path}: {e}")
             return 0
 
+        # Filter supported files first for accurate progress
+        supported_files = []
         for p in candidates:
-            # Skip non-files
             if not p.is_file():
                 continue
-            
-            # Skip temporary/lock files
             fname = p.name
             if (
                 fname.startswith("~$")
@@ -331,18 +335,28 @@ class IngestionPipeline:
                 or fname.endswith(".part")
             ):
                 continue
-
             if p.suffix.lower() in (DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS):
+                supported_files.append(p)
+
+        total_files = len(supported_files)
+        for idx, p in enumerate(supported_files):
+            if progress_callback:
                 try:
-                    res = self.process_file(str(p))
-                    if res and res.get("status") == "INDEXED":
-                        count += 1
-                except Exception as e:
-                    logger.error(f"Error ingesting file {p}: {e}")
+                    progress_callback(idx, total_files, p.name)
+                except Exception:
+                    pass
+
+            try:
+                res = self.process_file(str(p))
+                if res and res.get("status") == "INDEXED":
+                    count += 1
+            except Exception as e:
+                logger.error(f"Error ingesting file {p}: {e}")
 
         # Update version clustering after scan
         VersionDetector.detect_and_update_versions(self.repository)
         return count
+
 
     def reconcile_missing_vectors(self) -> int:
         """

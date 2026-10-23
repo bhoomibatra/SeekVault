@@ -15,38 +15,24 @@ from seekvault.ui.components import (
     open_folder_in_os,
     inject_design_system,
 )
-from seekvault.ui.platform import pick_folder_dialog, pick_files_dialog
+from seekvault.ui.navigator import (
+    get_friendly_folder_name,
+    inspect_location_for_indexing,
+    render_folder_browser,
+    render_file_browser,
+)
 
 
 def _inspect_directory(folder_path: str, recursive: bool = True) -> Dict[str, Any]:
     """Inspect directory contents to categorize supported and unsupported formats prior to indexing."""
-    supported = []
-    unsupported = []
-    all_supported_exts = DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS
-
-    p = Path(folder_path)
-    if not p.exists() or not p.is_dir():
-        return {"supported": [], "unsupported": [], "total": 0}
-
-    pattern = "**/*" if recursive else "*"
-    try:
-        candidates = list(p.glob(pattern))
-    except Exception:
-        candidates = []
-
-    for c in candidates:
-        if c.is_file():
-            ext = c.suffix.lower()
-            if ext in all_supported_exts:
-                supported.append(c)
-            else:
-                unsupported.append(c)
-
+    res = inspect_location_for_indexing(folder_path, is_folder=True, recursive=recursive)
     return {
-        "supported": supported,
-        "unsupported": unsupported,
-        "total": len(supported) + len(unsupported)
+        "supported": res["supported"],
+        "unsupported": res["unsupported"],
+        "total": res["total_files"],
+        "by_type": res.get("by_type", {})
     }
+
 
 
 def render_my_files_page(
@@ -93,93 +79,146 @@ def render_my_files_page(
             unsafe_allow_html=True
         )
 
-        # ── Folder Import Controls ──
-        c_add_fld, c_add_fls = st.columns(2)
+        # ── Import Mode Switcher ──
+        mode = st.radio(
+            "Choose what you want to add to SeekVault:",
+            options=["Add a Folder", "Add Specific Files"],
+            horizontal=True,
+            key="lib_import_mode_selector"
+        )
 
-        with c_add_fld:
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+
+        if mode == "Add a Folder":
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Authorize Folder</div>
-                    <div style="font-size: 0.82rem; color: #4A5160; margin-bottom: 12px;">Select a local folder to monitor and index its supported documents and images.</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            if st.button("Browse Folder on Windows...", key="btn_browse_folder_main", type="primary"):
-                picked = pick_folder_dialog("Select folder to authorize for SeekVault")
-                if picked:
-                    st.session_state["review_folder_path"] = picked
-                    st.rerun()
-
-            fld_in = st.text_input("Or enter folder path:", key="input_lib_folder_path", placeholder=r"e.g. C:\Users\hp\Documents")
-            if st.button("Select Folder Path", key="btn_select_lib_folder"):
-                if fld_in and os.path.isdir(fld_in):
-                    st.session_state["review_folder_path"] = os.path.normpath(fld_in)
-                    st.rerun()
-                else:
-                    st.error("Directory not found on disk.")
-
-        with c_add_fls:
-            st.markdown(
-                """
-                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Add Individual Files</div>
-                    <div style="font-size: 0.82rem; color: #4A5160; margin-bottom: 12px;">Select one or more documents or images from anywhere on your PC to index.</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            if st.button("Browse Files on Windows...", key="btn_browse_files_main"):
-                picked_files = pick_files_dialog("Select documents or images to index")
-                if picked_files:
-                    st.session_state["review_files_list"] = picked_files
-                    st.rerun()
-
-            file_in = st.text_input("Or enter file path:", key="input_lib_file_path", placeholder=r"e.g. C:\Users\hp\Documents\notes.pdf")
-            if st.button("Select File Path", key="btn_select_lib_file"):
-                if file_in and os.path.isfile(file_in):
-                    st.session_state["review_files_list"] = [os.path.normpath(file_in)]
-                    st.rerun()
-                else:
-                    st.error("File not found on disk.")
-
-
-        # ── Pre-Indexing Review (Folder) ──
-        if "review_folder_path" in st.session_state and st.session_state["review_folder_path"]:
-            rf_path = st.session_state["review_folder_path"]
-            inspect_info = _inspect_directory(rf_path, recursive=True)
-
-            st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-            st.markdown(
-                f"""
-                <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Review Folder Before Indexing</div>
-                    <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.82rem; color: #15181E; margin-bottom: 8px;">{rf_path}</div>
-                    <div style="font-size: 0.85rem; color: #4A5160; line-height: 1.5;">
-                        Found <strong>{inspect_info['total']}</strong> items: 
-                        <strong style="color: #166534;">{len(inspect_info['supported'])} supported</strong> documents and images ready to index, 
-                        <span style="color: #697386;">{len(inspect_info['unsupported'])} unsupported formats</span> will be skipped.
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 18px; margin-bottom: 16px;">
+                    <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Choose a Folder to Index</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 14px;">
+                        Browse your computer's folders below. SeekVault will read and index supported documents and images for fast search.
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-            c_start_fld, c_cancel_fld = st.columns([1.5, 1])
-            with c_start_fld:
-                if st.button("Start Indexing Folder", key="btn_confirm_index_fld", type="primary"):
-                    with st.spinner(f"Indexing '{Path(rf_path).name}'..."):
+            chosen_fld = render_folder_browser(key_prefix="lib_fld_nav")
+            if chosen_fld:
+                st.session_state["review_folder_path"] = chosen_fld
+                st.session_state["review_files_list"] = None
+                st.rerun()
+
+            # Optional Windows dialog
+            with st.expander("Open Windows dialog (optional)", expanded=False):
+                st.caption("If you prefer the standard Windows folder popup window:")
+                from seekvault.ui.platform import pick_folder_dialog
+                if st.button("Open Windows Folder Dialog", key="btn_native_folder_lib"):
+                    picked = pick_folder_dialog("Select folder to authorize for SeekVault")
+                    if picked:
+                        st.session_state["review_folder_path"] = picked
+                        st.session_state["review_files_list"] = None
+                        st.rerun()
+
+        else:
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 18px; margin-bottom: 16px;">
+                    <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Choose Individual Files to Index</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 14px;">
+                        Browse to a folder below and select one or more documents or images to add to your library.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            chosen_fls = render_file_browser(key_prefix="lib_fls_nav")
+            if chosen_fls:
+                st.session_state["review_files_list"] = chosen_fls
+                st.session_state["review_folder_path"] = None
+                st.rerun()
+
+            # Optional Windows dialog
+            with st.expander("Open Windows dialog (optional)", expanded=False):
+                st.caption("If you prefer the standard Windows file popup window:")
+                from seekvault.ui.platform import pick_files_dialog
+                if st.button("Open Windows File Dialog", key="btn_native_files_lib"):
+                    picked = pick_files_dialog("Select documents or images to index")
+                    if picked:
+                        st.session_state["review_files_list"] = picked
+                        st.session_state["review_folder_path"] = None
+                        st.rerun()
+
+        # ── Pre-Indexing Review (Folder) ──
+        if "review_folder_path" in st.session_state and st.session_state["review_folder_path"]:
+            rf_path = st.session_state["review_folder_path"]
+            inspect_info = inspect_location_for_indexing(rf_path, is_folder=True, recursive=True)
+
+            if not inspect_info["valid"]:
+                st.error(f"Cannot index folder: {inspect_info['error']}")
+                if st.button("Dismiss", key="btn_dismiss_fld_err"):
+                    st.session_state["review_folder_path"] = None
+                    st.rerun()
+            else:
+                friendly_fld = get_friendly_folder_name(rf_path)
+                supported_cnt = len(inspect_info["supported"])
+                unsupported_cnt = len(inspect_info["unsupported"])
+                total_sz = format_file_size(inspect_info["total_bytes"])
+
+                # Format breakdown summary
+                by_type = inspect_info.get("by_type", {})
+                breakdown_parts = [f"{cnt} {fmt}" for fmt, cnt in sorted(by_type.items())]
+                breakdown_str = ", ".join(breakdown_parts) if breakdown_parts else "None"
+
+                st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 18px; margin-bottom: 16px;">
+                        <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+                            Review: {friendly_fld}
+                        </div>
+                        <div style="font-size: 0.88rem; color: #15181E; line-height: 1.6; margin-bottom: 8px;">
+                            Found <strong>{supported_cnt} supported files</strong> ({breakdown_str}) totaling <strong>{total_sz}</strong>.
+                            {f'<span style="color: #697386;">({unsupported_cnt} unsupported files will be safely skipped)</span>' if unsupported_cnt > 0 else ''}
+                        </div>
+                        <div style="font-size: 0.82rem; color: #166534; line-height: 1.4; margin-bottom: 10px;">
+                            ✓ <strong>Safe read-only scan:</strong> Your original files on disk will strictly never be moved, altered, or deleted.
+                        </div>
+                        <details style="margin-top: 6px;">
+                            <summary style="font-size: 0.78rem; color: #697386; cursor: pointer;">Show full folder path</summary>
+                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.78rem; color: #4A5160; margin-top: 4px; word-break: break-all;">
+                                {rf_path}
+                            </div>
+                        </details>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                c_start_fld, c_cancel_fld = st.columns([1.5, 1])
+                with c_start_fld:
+                    if st.button(f"Start Indexing {friendly_fld}", key="btn_confirm_index_fld", type="primary"):
                         fid = repo.add_authorized_folder(rf_path, is_recursive=True)
-                        count = pipeline.scan_folder(rf_path, is_recursive=True)
+                        prog_bar = st.progress(0)
+                        prog_text = st.empty()
+
+                        def _on_progress(idx, total, fname):
+                            if total > 0:
+                                prog_bar.progress((idx + 1) / total)
+                                prog_text.markdown(f"<span style='font-size:0.84rem; color:#4A5160;'>Reading file {idx+1} of {total}: <strong>{fname}</strong></span>", unsafe_allow_html=True)
+
+                        count = pipeline.scan_folder(rf_path, is_recursive=True, progress_callback=_on_progress)
                         watcher.sync_watches()
-                    st.success(f"Indexed {count} supported file(s) from '{Path(rf_path).name}'.")
-                    st.session_state["review_folder_path"] = None
-                    st.rerun()
-            with c_cancel_fld:
-                if st.button("Cancel Import", key="btn_cancel_fld"):
-                    st.session_state["review_folder_path"] = None
-                    st.rerun()
+                        prog_bar.empty()
+                        prog_text.empty()
+                        st.success(f"Successfully indexed {count} file(s) from '{friendly_fld}'.")
+                        st.session_state["review_folder_path"] = None
+                        st.rerun()
+
+                with c_cancel_fld:
+                    if st.button("Cancel", key="btn_cancel_fld"):
+                        st.session_state["review_folder_path"] = None
+                        st.rerun()
 
         # ── Pre-Indexing Review (Individual Files) ──
         if "review_files_list" in st.session_state and st.session_state["review_files_list"]:
@@ -187,11 +226,22 @@ def render_my_files_page(
             st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
             st.markdown(
                 f"""
-                <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Review Files Before Indexing</div>
-                    <div style="font-size: 0.85rem; color: #4A5160; line-height: 1.5;">
-                        Selected <strong>{len(flist)}</strong> file(s) for indexing.
+                <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 18px; margin-bottom: 16px;">
+                    <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+                        Review Selected Files
                     </div>
+                    <div style="font-size: 0.88rem; color: #15181E; line-height: 1.6; margin-bottom: 8px;">
+                        Ready to index <strong>{len(flist)}</strong> individual file(s).
+                    </div>
+                    <div style="font-size: 0.82rem; color: #166534; line-height: 1.4; margin-bottom: 10px;">
+                        ✓ <strong>Safe read-only scan:</strong> Your original files on disk will strictly never be moved, altered, or deleted.
+                    </div>
+                    <details style="margin-top: 6px;">
+                        <summary style="font-size: 0.78rem; color: #697386; cursor: pointer;">Show selected file names</summary>
+                        <ul style="font-size: 0.80rem; color: #4A5160; margin: 6px 0 0 16px; padding: 0;">
+                            {''.join([f'<li>{Path(f).name}</li>' for f in flist])}
+                        </ul>
+                    </details>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -199,25 +249,34 @@ def render_my_files_page(
 
             c_start_fls, c_cancel_fls = st.columns([1.5, 1])
             with c_start_fls:
-                if st.button("Start Indexing Files", key="btn_confirm_index_fls", type="primary"):
+                if st.button(f"Start Indexing {len(flist)} File(s)", key="btn_confirm_index_fls", type="primary"):
                     indexed = 0
-                    with st.spinner("Indexing selected files..."):
-                        for fp in flist:
-                            p = Path(fp)
-                            parent_dir = str(p.parent)
-                            if not repo.is_path_authorized(str(p)):
-                                repo.add_authorized_folder(parent_dir, is_recursive=False)
-                            res = pipeline.process_file(str(p))
-                            if res and res.get("status") == "INDEXED":
-                                indexed += 1
-                        watcher.sync_watches()
+                    prog_bar = st.progress(0)
+                    prog_text = st.empty()
+
+                    for idx, fp in enumerate(flist):
+                        p = Path(fp)
+                        prog_bar.progress((idx + 1) / len(flist))
+                        prog_text.markdown(f"<span style='font-size:0.84rem; color:#4A5160;'>Indexing file {idx+1} of {len(flist)}: <strong>{p.name}</strong></span>", unsafe_allow_html=True)
+                        parent_dir = str(p.parent)
+                        if not repo.is_path_authorized(str(p)):
+                            repo.add_authorized_folder(parent_dir, is_recursive=False)
+                        res = pipeline.process_file(str(p))
+                        if res and res.get("status") == "INDEXED":
+                            indexed += 1
+
+                    watcher.sync_watches()
+                    prog_bar.empty()
+                    prog_text.empty()
                     st.success(f"Successfully indexed {indexed} file(s).")
                     st.session_state["review_files_list"] = None
                     st.rerun()
+
             with c_cancel_fls:
-                if st.button("Cancel Files Import", key="btn_cancel_fls"):
+                if st.button("Cancel", key="btn_cancel_fls"):
                     st.session_state["review_files_list"] = None
                     st.rerun()
+
 
         st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
@@ -302,7 +361,7 @@ def render_my_files_page(
             for f in auth_folders:
                 fid = f["id"]
                 f_path = f["folder_path"]
-                f_name = Path(f_path).name or f_path
+                f_name = get_friendly_folder_name(f_path)
                 is_rec = bool(f.get("is_recursive", 1))
                 counts = folder_counts.get(fid, {"indexed": 0, "failed": 0, "pending": 0})
 
@@ -312,19 +371,23 @@ def render_my_files_page(
                     with c_info:
                         st.markdown(
                             f"""
-                            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E;">
-                                {f_name}
+                            <div style="font-size: 0.96rem; font-weight: 600; color: #15181E;">
+                                📁 {f_name}
                             </div>
-                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #697386;">
-                                {f_path}
+                            <div style="font-size: 0.80rem; color: #4A5160; margin: 2px 0 4px 0;">
+                                <strong>{counts['indexed']} file(s) ready to search</strong> &nbsp;•&nbsp; {'Subfolders included' if is_rec else 'Direct folder only'}
+                                {f" &nbsp;•&nbsp; <span style='color:#B42318;'>{counts['failed']} couldn't be read</span>" if counts['failed'] > 0 else ""}
                             </div>
-                            <div style="font-size: 0.78rem; color: #4A5160; margin-top: 3px;">
-                                {counts['indexed']} indexed &nbsp;•&nbsp; {'Recursive' if is_rec else 'Direct only'}
-                                {f" &nbsp;•&nbsp; <span style='color:#B42318;'>{counts['failed']} failed</span>" if counts['failed'] > 0 else ""}
-                            </div>
+                            <details style="margin: 0;">
+                                <summary style="font-size: 0.76rem; color: #697386; cursor: pointer;">Folder location details</summary>
+                                <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #4A5160; margin-top: 2px; word-break: break-all;">
+                                    {f_path}
+                                </div>
+                            </details>
                             """,
                             unsafe_allow_html=True
                         )
+
 
                     with c_actions:
                         c_rescan, c_revoke = st.columns(2)

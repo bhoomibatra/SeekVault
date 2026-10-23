@@ -18,6 +18,8 @@ from seekvault.ui.components import (
     inject_design_system,
 )
 from seekvault.ui.platform import pick_folder_dialog, pick_files_dialog
+from seekvault.ui.navigator import get_friendly_folder_name
+
 
 
 def _get_format_badge(ext: str) -> str:
@@ -95,100 +97,85 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
         with st.container():
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Add Files to Library</div>
-                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 10px;">Select individual files from your computer to authorize and index.</div>
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 1rem; font-weight: 600; color: #15181E;">Add Individual Files</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #4A5160;">Browse to a folder below and choose specific documents or images to index.</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-            c_pick, c_cancel = st.columns([2, 1])
-            with c_pick:
-                if st.button("Browse Files on Windows...", key="modal_browse_files"):
-                    selected = pick_files_dialog("Select files to add to SeekVault")
-                    if selected and pipeline:
-                        added = 0
-                        for f_path in selected:
-                            p = Path(f_path)
-                            parent_dir = str(p.parent)
-                            if not repo.is_path_authorized(str(p)):
-                                repo.add_authorized_folder(parent_dir, is_recursive=False)
-                            res = pipeline.process_file(str(p))
-                            if res and res.get("status") == "INDEXED":
-                                added += 1
-                        st.success(f"Successfully indexed {added} file(s).")
-                        st.session_state["show_add_modal"] = None
-                        st.rerun()
-            with c_cancel:
-                if st.button("Close", key="modal_close_files"):
+            from seekvault.ui.navigator import render_file_browser
+            chosen_fls = render_file_browser(key_prefix="search_fls_nav")
+
+            c_cancel_top, _ = st.columns([1, 4])
+            with c_cancel_top:
+                if st.button("Close File Selector", key="btn_close_search_files"):
                     st.session_state["show_add_modal"] = None
                     st.rerun()
 
-            st.markdown("<div style='font-size: 0.82rem; color: #697386; margin: 10px 0 4px 0;'>Or enter file path directly:</div>", unsafe_allow_html=True)
-            c_in, c_add = st.columns([3, 1])
-            with c_in:
-                direct_file = st.text_input("Enter absolute file path", key="input_direct_file_path", label_visibility="collapsed", placeholder=r"e.g. C:\Users\hp\Documents\notes.pdf")
-            with c_add:
-                if st.button("Add Path", key="btn_add_direct_file_path"):
-                    if direct_file and os.path.isfile(direct_file):
-                        p = Path(direct_file)
-                        parent_dir = str(p.parent)
-                        if not repo.is_path_authorized(str(p)):
-                            repo.add_authorized_folder(parent_dir, is_recursive=False)
-                        if pipeline:
-                            res = pipeline.process_file(str(p))
-                            if res and res.get("status") == "INDEXED":
-                                st.success(f"Indexed {p.name}")
-                                st.session_state["show_add_modal"] = None
-                                st.rerun()
-                    else:
-                        st.error("File not found at specified path.")
+            if chosen_fls and pipeline:
+                indexed = 0
+                prog_bar = st.progress(0)
+                for idx, fp in enumerate(chosen_fls):
+                    p = Path(fp)
+                    prog_bar.progress((idx + 1) / len(chosen_fls))
+                    parent_dir = str(p.parent)
+                    if not repo.is_path_authorized(str(p)):
+                        repo.add_authorized_folder(parent_dir, is_recursive=False)
+                    res = pipeline.process_file(str(p))
+                    if res and res.get("status") == "INDEXED":
+                        indexed += 1
+                if watcher:
+                    watcher.sync_watches()
+                prog_bar.empty()
+                st.success(f"Successfully added {indexed} file(s) to your library.")
+                st.session_state["show_add_modal"] = None
+                st.rerun()
 
     elif active_modal == "folder":
         with st.container():
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Authorize Local Directory</div>
-                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 10px;">Choose a folder to index. SeekVault will read and index files locally without moving or altering them.</div>
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 1rem; font-weight: 600; color: #15181E;">Choose a Folder to Index</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #4A5160;">Select a local folder below to monitor and search its contents.</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-            c_pick, c_cancel = st.columns([2, 1])
-            with c_pick:
-                if st.button("Browse Folder on Windows...", key="modal_browse_folder"):
-                    folder = pick_folder_dialog("Select folder to authorize for SeekVault")
-                    if folder and pipeline:
-                        fid = repo.add_authorized_folder(folder, is_recursive=True)
-                        count = pipeline.scan_folder(folder, is_recursive=True)
-                        if watcher:
-                            watcher.sync_watches()
-                        st.success(f"Authorized '{Path(folder).name}' and indexed {count} file(s).")
-                        st.session_state["show_add_modal"] = None
-                        st.rerun()
-            with c_cancel:
-                if st.button("Close", key="modal_close_folder"):
+            from seekvault.ui.navigator import render_folder_browser, get_friendly_folder_name
+            chosen_folder = render_folder_browser(key_prefix="search_fld_nav")
+
+            c_cancel_fld, _ = st.columns([1, 4])
+            with c_cancel_fld:
+                if st.button("Close Folder Selector", key="btn_close_search_folder"):
                     st.session_state["show_add_modal"] = None
                     st.rerun()
 
-            st.markdown("<div style='font-size: 0.82rem; color: #697386; margin: 10px 0 4px 0;'>Or enter folder path directly:</div>", unsafe_allow_html=True)
-            c_fin, c_fadd = st.columns([3, 1])
-            with c_fin:
-                direct_folder = st.text_input("Enter absolute folder path", key="input_direct_folder_path", label_visibility="collapsed", placeholder=r"e.g. C:\Users\hp\Documents")
-            with c_fadd:
-                if st.button("Add Folder", key="btn_add_direct_folder_path"):
-                    if direct_folder and os.path.isdir(direct_folder):
-                        if pipeline:
-                            fid = repo.add_authorized_folder(direct_folder, is_recursive=True)
-                            count = pipeline.scan_folder(direct_folder, is_recursive=True)
-                            if watcher:
-                                watcher.sync_watches()
-                            st.success(f"Authorized '{Path(direct_folder).name}' and indexed {count} file(s).")
-                            st.session_state["show_add_modal"] = None
-                            st.rerun()
-                    else:
-                        st.error("Directory not found at specified path.")
+            if chosen_folder and pipeline:
+                friendly = get_friendly_folder_name(chosen_folder)
+                fid = repo.add_authorized_folder(chosen_folder, is_recursive=True)
+                prog_bar = st.progress(0)
+                prog_text = st.empty()
+
+                def _prog(idx, total, fname):
+                    if total > 0:
+                        prog_bar.progress((idx + 1) / total)
+                        prog_text.caption(f"Reading {fname}...")
+
+                count = pipeline.scan_folder(chosen_folder, is_recursive=True, progress_callback=_prog)
+                if watcher:
+                    watcher.sync_watches()
+                prog_bar.empty()
+                prog_text.empty()
+                st.success(f"Successfully added '{friendly}' and indexed {count} file(s).")
+                st.session_state["show_add_modal"] = None
+                st.rerun()
+
 
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -374,17 +361,23 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                             )
 
                         # Location Path and Metadata
+                        parent_path = str(Path(file_path).parent)
+                        friendly_parent = get_friendly_folder_name(parent_path)
                         st.markdown(
                             f"""
-                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #697386; word-break: break-all;">
-                                {file_path}
+                            <div style="font-size: 0.82rem; color: #4A5160; margin: 4px 0 2px 0;">
+                                📁 In <strong>{friendly_parent}</strong> &nbsp;•&nbsp; {file_sz} &nbsp;•&nbsp; Modified {mod_time}
                             </div>
-                            <div style="font-size: 0.75rem; color: #4A5160; margin-top: 3px;">
-                                {file_sz} &nbsp;•&nbsp; Modified {mod_time}
-                            </div>
+                            <details style="margin: 2px 0 0 0;">
+                                <summary style="font-size: 0.75rem; color: #697386; cursor: pointer;">Show file location</summary>
+                                <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #4A5160; margin-top: 2px; word-break: break-all;">
+                                    {file_path}
+                                </div>
+                            </details>
                             """,
                             unsafe_allow_html=True
                         )
+
 
                     with col_actions:
                         if st.button("Open", key=f"search_open_{res['file_id']}_{idx}", use_container_width=True):
