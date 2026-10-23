@@ -124,6 +124,26 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                     st.session_state["show_add_modal"] = None
                     st.rerun()
 
+            st.markdown("<div style='font-size: 0.82rem; color: #697386; margin: 10px 0 4px 0;'>Or enter file path directly:</div>", unsafe_allow_html=True)
+            c_in, c_add = st.columns([3, 1])
+            with c_in:
+                direct_file = st.text_input("Enter absolute file path", key="input_direct_file_path", label_visibility="collapsed", placeholder=r"e.g. C:\Users\hp\Documents\notes.pdf")
+            with c_add:
+                if st.button("Add Path", key="btn_add_direct_file_path"):
+                    if direct_file and os.path.isfile(direct_file):
+                        p = Path(direct_file)
+                        parent_dir = str(p.parent)
+                        if not repo.is_path_authorized(str(p)):
+                            repo.add_authorized_folder(parent_dir, is_recursive=False)
+                        if pipeline:
+                            res = pipeline.process_file(str(p))
+                            if res and res.get("status") == "INDEXED":
+                                st.success(f"Indexed {p.name}")
+                                st.session_state["show_add_modal"] = None
+                                st.rerun()
+                    else:
+                        st.error("File not found at specified path.")
+
     elif active_modal == "folder":
         with st.container():
             st.markdown(
@@ -151,6 +171,25 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                 if st.button("Close", key="modal_close_folder"):
                     st.session_state["show_add_modal"] = None
                     st.rerun()
+
+            st.markdown("<div style='font-size: 0.82rem; color: #697386; margin: 10px 0 4px 0;'>Or enter folder path directly:</div>", unsafe_allow_html=True)
+            c_fin, c_fadd = st.columns([3, 1])
+            with c_fin:
+                direct_folder = st.text_input("Enter absolute folder path", key="input_direct_folder_path", label_visibility="collapsed", placeholder=r"e.g. C:\Users\hp\Documents")
+            with c_fadd:
+                if st.button("Add Folder", key="btn_add_direct_folder_path"):
+                    if direct_folder and os.path.isdir(direct_folder):
+                        if pipeline:
+                            fid = repo.add_authorized_folder(direct_folder, is_recursive=True)
+                            count = pipeline.scan_folder(direct_folder, is_recursive=True)
+                            if watcher:
+                                watcher.sync_watches()
+                            st.success(f"Authorized '{Path(direct_folder).name}' and indexed {count} file(s).")
+                            st.session_state["show_add_modal"] = None
+                            st.rerun()
+                    else:
+                        st.error("Directory not found at specified path.")
+
 
     # ─────────────────────────────────────────────────────────────────────────
     # 2. EMPTY LIBRARY STATE

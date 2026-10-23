@@ -11,25 +11,28 @@ from typing import List, Optional, Tuple
 
 
 def pick_folder_dialog(title: str = "Select a folder to authorize for SeekVault") -> Optional[str]:
-    """Launch native Windows FolderBrowserDialog via PowerShell. Returns absolute path or None."""
+    """Launch native Windows FolderBrowserDialog via PowerShell with TopMost owner."""
     if sys.platform != "win32":
         return None
 
-    # PowerShell script to show FolderBrowserDialog with STA threading
+    # PowerShell script to show FolderBrowserDialog in front of all windows
     ps_cmd = f"""
     Add-Type -AssemblyName System.Windows.Forms
+    $form = New-Object System.Windows.Forms.Form
+    $form.TopMost = $true
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $dialog.Description = '{title}'
     $dialog.ShowNewFolderButton = $false
-    $result = $dialog.ShowDialog()
+    $result = $dialog.ShowDialog($form)
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         Write-Output $dialog.SelectedPath
     }}
+    $form.Dispose()
     """
     try:
         res = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True,
             text=True,
             timeout=120
@@ -43,25 +46,28 @@ def pick_folder_dialog(title: str = "Select a folder to authorize for SeekVault"
 
 
 def pick_files_dialog(title: str = "Select documents or images to add to SeekVault") -> List[str]:
-    """Launch native Windows OpenFileDialog via PowerShell. Returns list of absolute paths."""
+    """Launch native Windows OpenFileDialog via PowerShell with TopMost owner."""
     if sys.platform != "win32":
         return []
 
     ps_cmd = f"""
     Add-Type -AssemblyName System.Windows.Forms
+    $form = New-Object System.Windows.Forms.Form
+    $form.TopMost = $true
     $dialog = New-Object System.Windows.Forms.OpenFileDialog
     $dialog.Multiselect = $true
     $dialog.Title = '{title}'
     $dialog.Filter = 'Documents & Media (*.pdf;*.docx;*.txt;*.md;*.png;*.jpg;*.jpeg)|*.pdf;*.docx;*.txt;*.md;*.png;*.jpg;*.jpeg|All Files (*.*)|*.*'
-    $result = $dialog.ShowDialog()
+    $result = $dialog.ShowDialog($form)
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         $dialog.FileNames | ForEach-Object {{ Write-Output $_ }}
     }}
+    $form.Dispose()
     """
     try:
         res = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True,
             text=True,
             timeout=120
@@ -75,16 +81,25 @@ def pick_files_dialog(title: str = "Select documents or images to add to SeekVau
 
 def open_file_in_os(file_path: str) -> Tuple[bool, str]:
     """Launch the file with its default registered system application."""
-    if not file_path or not os.path.exists(file_path):
-        return False, f"File does not exist: {file_path}"
+    if not file_path:
+        return False, "Invalid file path."
+
+    # Try resolving relative path if needed
+    p = Path(file_path)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+
+    if not p.exists():
+        return False, f"File does not exist on disk: {p}"
 
     try:
+        resolved = str(p.resolve())
         if sys.platform == "win32":
-            os.startfile(file_path)
+            os.startfile(resolved)
         elif sys.platform == "darwin":
-            subprocess.Popen(["open", file_path])
+            subprocess.Popen(["open", resolved])
         else:
-            subprocess.Popen(["xdg-open", file_path])
+            subprocess.Popen(["xdg-open", resolved])
         return True, "File opened successfully."
     except Exception as exc:
         return False, f"Failed to open file: {exc}"
@@ -95,7 +110,11 @@ def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
     if not file_path:
         return False, "Invalid file path."
 
-    norm_path = os.path.normpath(file_path)
+    p = Path(file_path)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+
+    norm_path = os.path.normpath(str(p.resolve()))
     parent_dir = os.path.dirname(norm_path)
 
     try:
@@ -115,3 +134,4 @@ def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
         return True, "Opened folder in File Explorer."
     except Exception as exc:
         return False, f"Failed to open folder: {exc}"
+

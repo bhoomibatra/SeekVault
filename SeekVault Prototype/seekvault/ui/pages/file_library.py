@@ -112,6 +112,14 @@ def render_my_files_page(
                     st.session_state["review_folder_path"] = picked
                     st.rerun()
 
+            fld_in = st.text_input("Or enter folder path:", key="input_lib_folder_path", placeholder=r"e.g. C:\Users\hp\Documents")
+            if st.button("Select Folder Path", key="btn_select_lib_folder"):
+                if fld_in and os.path.isdir(fld_in):
+                    st.session_state["review_folder_path"] = os.path.normpath(fld_in)
+                    st.rerun()
+                else:
+                    st.error("Directory not found on disk.")
+
         with c_add_fls:
             st.markdown(
                 """
@@ -127,6 +135,15 @@ def render_my_files_page(
                 if picked_files:
                     st.session_state["review_files_list"] = picked_files
                     st.rerun()
+
+            file_in = st.text_input("Or enter file path:", key="input_lib_file_path", placeholder=r"e.g. C:\Users\hp\Documents\notes.pdf")
+            if st.button("Select File Path", key="btn_select_lib_file"):
+                if file_in and os.path.isfile(file_in):
+                    st.session_state["review_files_list"] = [os.path.normpath(file_in)]
+                    st.rerun()
+                else:
+                    st.error("File not found on disk.")
+
 
         # ── Pre-Indexing Review (Folder) ──
         if "review_folder_path" in st.session_state and st.session_state["review_folder_path"]:

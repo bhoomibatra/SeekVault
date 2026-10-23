@@ -7,16 +7,24 @@ from typing import Dict, Any, Tuple
 
 def open_file_in_os(file_path: str) -> Tuple[bool, str]:
     """Launch the file using its default registered application."""
-    if not file_path or not os.path.exists(file_path):
-        return False, f"File does not exist on disk: {file_path}"
+    if not file_path:
+        return False, "Invalid file path."
+
+    p = Path(file_path)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+
+    if not p.exists():
+        return False, f"File does not exist on disk: {p}"
 
     try:
+        resolved = str(p.resolve())
         if sys.platform == "win32":
-            os.startfile(file_path)
+            os.startfile(resolved)
         elif sys.platform == "darwin":
-            subprocess.Popen(["open", file_path])
+            subprocess.Popen(["open", resolved])
         else:
-            subprocess.Popen(["xdg-open", file_path])
+            subprocess.Popen(["xdg-open", resolved])
         return True, "File opened successfully."
     except Exception as e:
         return False, f"Failed to open file: {e}"
@@ -26,7 +34,11 @@ def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
     if not file_path:
         return False, "Invalid file path."
 
-    norm_path = os.path.normpath(file_path)
+    p = Path(file_path)
+    if not p.is_absolute():
+        p = Path.cwd() / p
+
+    norm_path = os.path.normpath(str(p.resolve()))
     parent_dir = os.path.dirname(norm_path)
 
     try:
@@ -46,6 +58,7 @@ def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
         return True, "Folder opened successfully."
     except Exception as e:
         return False, f"Failed to open folder: {e}"
+
 
 
 def render_tier_badge(tier: str) -> str:
