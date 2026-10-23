@@ -58,10 +58,8 @@ def render_privacy_center(repo: Repository):
         type_counts = df_ent["entity_type"].value_counts()
         st.bar_chart(type_counts, color="#F59E0B")
 
-        st.dataframe(
-            df_ent[["file_name", "privacy_tier", "entity_type", "entity_text", "confidence", "start_char", "end_char"]],
-            use_container_width=True
-        )
+        cols = [c for c in ["file_name", "privacy_tier", "entity_type", "entity_token", "confidence"] if c in df_ent.columns]
+        st.dataframe(df_ent[cols], use_container_width=True)
 
     # Privacy Guarantee Checklist
     st.markdown("---")

@@ -64,14 +64,13 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# Navigation Menu — Search as default landing page
+# Navigation Menu — Search as default landing page, File Library consolidating Folders & Files
 nav_choice = st.sidebar.radio(
     "Navigation",
     [
         "🔍 Search",
+        "📁 File Library",
         "📊 Dashboard",
-        "📁 Authorized Folders",
-        "📄 Indexed Files",
         "🛡️ Privacy Center",
         "👯 Duplicates & Versions",
         "⚙️ Settings"
@@ -90,22 +89,19 @@ else:
 st.sidebar.caption("SeekVault v1.0 • 100% Local & Private")
 
 # Page Routing
-from seekvault.ui.pages.dashboard import render_dashboard
 from seekvault.ui.pages.search import render_search_page
-from seekvault.ui.pages.folders import render_folders_page
-from seekvault.ui.pages.indexed_files import render_indexed_files_page
+from seekvault.ui.pages.file_library import render_file_library_page
+from seekvault.ui.pages.dashboard import render_dashboard
 from seekvault.ui.pages.privacy_center import render_privacy_center
 from seekvault.ui.pages.duplicates_versions import render_duplicates_versions_page
 from seekvault.ui.pages.settings import render_settings_page
 
 if nav_choice == "🔍 Search":
     render_search_page(search_engine)
+elif nav_choice == "📁 File Library":
+    render_file_library_page(repo, pipeline, watcher)
 elif nav_choice == "📊 Dashboard":
     render_dashboard(repo, watcher_status)
-elif nav_choice == "📁 Authorized Folders":
-    render_folders_page(repo, pipeline, watcher)
-elif nav_choice == "📄 Indexed Files":
-    render_indexed_files_page(repo)
 elif nav_choice == "🛡️ Privacy Center":
     render_privacy_center(repo)
 elif nav_choice == "👯 Duplicates & Versions":
