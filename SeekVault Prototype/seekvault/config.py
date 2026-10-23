@@ -1,9 +1,18 @@
 import os
 from pathlib import Path
 
-# Base Paths
+# Enforce local-only execution (zero telemetry, offline HuggingFace)
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
+# Base Paths (supports project-relative default or user-writable app data override)
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data_storage"
+_custom_data_dir = os.environ.get("SEEKVAULT_DATA_DIR")
+if _custom_data_dir:
+    DATA_DIR = Path(_custom_data_dir).resolve()
+else:
+    DATA_DIR = BASE_DIR / "data_storage"
+
 DATA_DIR.mkdir(exist_ok=True, parents=True)
 
 DB_PATH = DATA_DIR / "seekvault.db"

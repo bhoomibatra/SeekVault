@@ -11,19 +11,32 @@ Write-Host "  Privacy-First Multimodal Semantic Search Engine     " -ForegroundC
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 1. Find Python executable (checks local/known virtualenvs first, then PATH)
-$KnownEnvs = @(
-    "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\Scripts\python.exe",
-    "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe",
-    "$ScriptDir\venv\Scripts\python.exe",
-    "$ScriptDir\..\venv\Scripts\python.exe"
-)
+# Enforce offline mode in environment
+$env:HF_HUB_OFFLINE = "1"
+$env:TRANSFORMERS_OFFLINE = "1"
 
+# 1. Find Python executable (checks custom env var, project venvs, then PATH)
 $PythonExe = $null
-foreach ($envPath in $KnownEnvs) {
-    if (Test-Path $envPath) {
-        $PythonExe = $envPath
-        break
+
+if ($env:SEEKVAULT_PYTHON -and (Test-Path $env:SEEKVAULT_PYTHON)) {
+    $PythonExe = $env:SEEKVAULT_PYTHON
+}
+
+if (-not $PythonExe) {
+    $CandidateEnvs = @(
+        "$ScriptDir\venv\Scripts\python.exe",
+        "$ScriptDir\.venv\Scripts\python.exe",
+        "$ScriptDir\..\venv\Scripts\python.exe",
+        "$ScriptDir\..\.venv\Scripts\python.exe",
+        "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\Scripts\python.exe",
+        "C:\Users\hp\OneDrive\Documents\Saanjh\python_env\python.exe"
+    )
+
+    foreach ($envPath in $CandidateEnvs) {
+        if (Test-Path $envPath) {
+            $PythonExe = $envPath
+            break
+        }
     }
 }
 
