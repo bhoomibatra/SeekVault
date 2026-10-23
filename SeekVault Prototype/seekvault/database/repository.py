@@ -750,21 +750,40 @@ class Repository:
             conn.execute("DELETE FROM version_members")
             conn.execute("DELETE FROM version_groups")
 
-    def get_all_version_groups(self) -> List[Dict[str, Any]]:
+    def dismiss_version_member(self, member_id: int) -> bool:
+        """Mark a suggested version match as dismissed by the user."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE version_members SET is_dismissed = 1 WHERE id = ?", (member_id,))
+            return cursor.rowcount > 0
+
+    def restore_version_member(self, member_id: int) -> bool:
+        """Restore a previously dismissed version suggestion."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE version_members SET is_dismissed = 0 WHERE id = ?", (member_id,))
+            return cursor.rowcount > 0
+
+    def get_all_version_groups(self, include_dismissed: bool = False) -> List[Dict[str, Any]]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM version_groups ORDER BY id ASC")
             v_groups = [dict(r) for r in cursor.fetchall()]
+            active_groups = []
             for vg in v_groups:
-                cursor.execute("""
+                dismiss_clause = "" if include_dismissed else "AND (vm.is_dismissed = 0 OR vm.is_dismissed IS NULL)"
+                cursor.execute(f"""
                     SELECT vm.*, f.file_name, f.file_path, f.modified_at, f.file_size
                     FROM version_members vm
                     JOIN files f ON vm.file_id = f.id
-                    WHERE vm.version_group_id = ?
+                    WHERE vm.version_group_id = ? {dismiss_clause}
                     ORDER BY vm.version_order ASC
                 """, (vg["id"],))
-                vg["members"] = [dict(r) for r in cursor.fetchall()]
-            return v_groups
+                members = [dict(r) for r in cursor.fetchall()]
+                vg["members"] = members
+                if members:
+                    active_groups.append(vg)
+            return active_groups
 
     # -------------------------------------------------------------
     # Dashboard & Telemetry

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Increment this whenever the schema changes.  The migration runner in
 # `init_db()` compares CURRENT_SCHEMA_VERSION against the value stored in the
 # `db_meta` table and applies any pending migrations in order.
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Baseline CREATE statements (version 1)
@@ -255,6 +255,12 @@ def init_db(conn: sqlite3.Connection, db_path: Optional[Path] = None) -> None:
         logger.info("Migrated database schema from v2 → v3 (FTS5 table).")
         current_version = 3
 
+    if current_version < 4:
+        _apply_migration_v4(conn)
+        _set_schema_version(conn, 4)
+        logger.info("Migrated database schema from v3 → v4 (version dismissal).")
+        current_version = 4
+
     if current_version < CURRENT_SCHEMA_VERSION:
         logger.warning(
             "Schema version %d is older than current %d but no migration found — "
@@ -342,4 +348,17 @@ def _apply_migration_v3(conn: sqlite3.Connection) -> None:
         logger.info("v3 migration: FTS5 table created; backfilled %d rows.", len(rows))
     except Exception as exc:  # pragma: no cover
         logger.warning("v3 migration: FTS5 backfill skipped — %s", exc)
+
+
+def _apply_migration_v4(conn: sqlite3.Connection) -> None:
+    """
+    Add version_members.is_dismissed column if absent.
+    """
+    try:
+        vm_cols = [row[1] for row in conn.execute("PRAGMA table_info(version_members)").fetchall()]
+        if "is_dismissed" not in vm_cols:
+            conn.execute("ALTER TABLE version_members ADD COLUMN is_dismissed INTEGER DEFAULT 0")
+            logger.info("v4 migration: added version_members.is_dismissed column.")
+    except Exception as exc:  # pragma: no cover
+        logger.warning("v4 migration: error checking or adding is_dismissed — %s", exc)
 
