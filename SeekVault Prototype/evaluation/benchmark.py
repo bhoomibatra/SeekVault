@@ -5,10 +5,17 @@ Computes retrieval quality metrics (Precision@1, Precision@5, Recall@5, MRR)
 and query execution latency (ms) across multimodal queries.
 """
 
+import sys
 import time
 import numpy as np
 from typing import List, Dict, Any, Optional
 from pathlib import Path
+
+# Ensure package root is on sys.path
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+
 from seekvault.search.engine import SearchEngine
 from evaluation.eval_dataset import BENCHMARK_QUERIES
 
@@ -136,3 +143,49 @@ def run_benchmark(search_engine: SearchEngine) -> Dict[str, Any]:
         "summary": summary,
         "markdown_report": report
     }
+
+
+if __name__ == "__main__":
+    import sys
+    import platform
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    from seekvault.database.repository import Repository
+
+    print("=" * 60)
+    print("SeekVault Retrieval Quality & Latency Benchmark")
+    print("=" * 60)
+
+    repo = Repository()
+    search_engine = SearchEngine(repository=repo)
+    res = run_benchmark(search_engine)
+    report_md = res["markdown_report"]
+
+    hw_info = [
+        "",
+        "## ⚙️ Test Environment & Model Metadata",
+        "",
+        f"- **Platform**: `{platform.platform()}`",
+        f"- **Python Version**: `{platform.python_version()}`",
+        "- **Text Embedding Model**: `all-MiniLM-L6-v2` (384 dimensions, sentence-transformers)",
+        "- **Image Embedding Model**: `clip-ViT-B-32` (512 dimensions, sentence-transformers)",
+        f"- **Index Size**: FAISS Text = {search_engine.text_index.index.ntotal} vectors, FAISS Image = {search_engine.image_index.index.ntotal} vectors",
+        "- **Fusion Method**: Reciprocal Rank Fusion (RRF) with SQLite FTS5",
+        "- **Evaluation Dataset**: 15 multi-domain semantic and cross-modal queries",
+        "",
+        "## ⚠️ Limitations & Methodological Constraints",
+        "",
+        "- Latency measurements reflect warm in-memory inference on local CPU without dedicated GPU acceleration.",
+        "- Exact duplicate documents with identical textual content will share identical semantic scores and may alternate top ranks.",
+        "- Image retrieval queries rely on zero-shot visual-semantic alignment via CLIP ViT-B/32.",
+        "- Heuristic version matching is evaluated independently as an exploratory grouping heuristic, not an authoritative VCS commit graph.",
+        ""
+    ]
+    full_report = report_md + "\n" + "\n".join(hw_info)
+    print(full_report)
+
+    report_file = Path(__file__).resolve().parent / "BENCHMARK_REPORT.md"
+    with open(report_file, "w", encoding="utf-8") as f:
+        f.write(full_report)
+    print(f"\n[OK] Report saved to: {report_file}")
+
