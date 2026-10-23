@@ -8,10 +8,14 @@ from seekvault.database.schema import init_db
 
 class Repository:
     def __init__(self, db_path: Optional[Path] = None):
+        if db_path is None:
+            from seekvault.config import DB_PATH
+            db_path = DB_PATH
         self.db_path = db_path
-        # Ensure database tables exist
+        # Initialize or migrate the schema safely
         with self._get_conn() as conn:
-            init_db(conn)
+            init_db(conn, db_path=self.db_path)
+
 
     def _get_conn(self):
         if self.db_path:
@@ -111,7 +115,7 @@ class Repository:
         file_type: str,
         modified_at: str,
         privacy_tier: str = "FULL",
-        status: str = "INDEXED",
+        status: str = "PENDING",   # starts as PENDING; pipeline sets INDEXED or FAILED
         visual_metadata: Optional[Dict[str, Any]] = None
     ) -> int:
         norm_path = os.path.normpath(os.path.abspath(file_path))
@@ -125,15 +129,15 @@ class Repository:
                     privacy_tier, status, visual_metadata, indexed_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(file_path) DO UPDATE SET
-                    folder_id = excluded.folder_id,
-                    file_size = excluded.file_size,
-                    file_hash = excluded.file_hash,
-                    file_type = excluded.file_type,
-                    modified_at = excluded.modified_at,
-                    privacy_tier = excluded.privacy_tier,
-                    status = excluded.status,
+                    folder_id       = excluded.folder_id,
+                    file_size       = excluded.file_size,
+                    file_hash       = excluded.file_hash,
+                    file_type       = excluded.file_type,
+                    modified_at     = excluded.modified_at,
+                    privacy_tier    = excluded.privacy_tier,
+                    status          = excluded.status,
                     visual_metadata = excluded.visual_metadata,
-                    indexed_at = CURRENT_TIMESTAMP
+                    indexed_at      = CURRENT_TIMESTAMP
             """, (
                 folder_id, norm_path, file_name, file_extension,
                 file_size, file_hash, file_type, modified_at,
@@ -142,6 +146,37 @@ class Repository:
             cursor.execute("SELECT id FROM files WHERE file_path = ?", (norm_path,))
             row = cursor.fetchone()
             return row["id"] if row else 0
+
+    def update_file_status(self, file_id: int, status: str) -> bool:
+        """Update a file's indexing lifecycle status (PENDING/INDEXED/FAILED/UNAUTHORIZED)."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE files SET status = ?, indexed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, file_id)
+            )
+            return cursor.rowcount > 0
+
+    def update_file_error(self, file_id: int, error_detail: str) -> bool:
+        """Mark a file as FAILED and record the extraction error detail."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE files SET status = 'FAILED', error_detail = ?, indexed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (error_detail[:1000], file_id)
+            )
+            return cursor.rowcount > 0
+
+    def reset_pending_files(self) -> int:
+        """Reset all FAILED files back to PENDING so they can be retried."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE files SET status = 'PENDING', error_detail = NULL WHERE status = 'FAILED'"
+            )
+            return cursor.rowcount
+
+
 
     def get_file_by_id(self, file_id: int) -> Optional[Dict[str, Any]]:
         with self._get_conn() as conn:
@@ -273,21 +308,27 @@ class Repository:
     def save_detected_entities(self, file_id: int, entities: List[Dict[str, Any]]) -> None:
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            # Clear old entities for this file
+            # Clear old entities for this file before reinserting
             cursor.execute("DELETE FROM detected_entities WHERE file_id = ?", (file_id,))
             for ent in entities:
+                # entity_token must be a masked placeholder, never raw PII text.
+                # Callers should pass a redacted token like '<EMAIL_REDACTED>'.
+                entity_token = ent.get("entity_token") or ent.get("entity_text", "<REDACTED>")
+                # Strip any raw PII that somehow slipped through — safety net.
+                if len(entity_token) > 64:
+                    entity_token = "<REDACTED_OVERSIZED>"
                 cursor.execute("""
                     INSERT INTO detected_entities (
-                        file_id, entity_type, entity_text, confidence, start_char, end_char
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        file_id, entity_type, entity_token, confidence
+                    ) VALUES (?, ?, ?, ?)
                 """, (
                     file_id,
                     ent.get("entity_type", "UNKNOWN"),
-                    ent.get("entity_text", ""),
+                    entity_token,
                     ent.get("confidence", 1.0),
-                    ent.get("start_char", 0),
-                    ent.get("end_char", 0)
                 ))
+
+
 
     def get_detected_entities_for_file(self, file_id: int) -> List[Dict[str, Any]]:
         with self._get_conn() as conn:
