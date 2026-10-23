@@ -2,8 +2,11 @@ import streamlit as st
 import os
 import re
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
+from typing import Optional, List, Dict, Any
+
 from seekvault.search.engine import SearchEngine
 from seekvault.ui.components import (
     render_tier_badge,
@@ -14,10 +17,11 @@ from seekvault.ui.components import (
     open_folder_in_os,
     inject_design_system,
 )
+from seekvault.ui.platform import pick_folder_dialog, pick_files_dialog
 
 
 def _get_format_badge(ext: str) -> str:
-    """Return styled inline format emblem."""
+    """Return styled inline format badge."""
     ext = (ext or "").lower().replace(".", "")
     if ext in ("pdf",):
         return '<span class="format-badge format-pdf">PDF</span>'
@@ -31,16 +35,13 @@ def _get_format_badge(ext: str) -> str:
 
 
 def _format_snippet(text: str, query: str) -> str:
-    """Format snippet with query highlighting, supporting existing FTS5 mark tags."""
+    """Format snippet with query term highlighting."""
     if not text:
         return ""
-    # If FTS5 already inserted <mark>, preserve it safely
     if "<mark>" in text and "</mark>" in text:
         return text
 
-    # Escape HTML characters first
     safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    # Highlight query terms
     terms = [re.escape(w) for w in query.strip().split() if len(w) > 2]
     if terms:
         pattern = re.compile(rf"(?i)\b({'|'.join(terms)})\b")
@@ -48,47 +49,121 @@ def _format_snippet(text: str, query: str) -> str:
     return safe
 
 
-def render_search_page(search_engine: SearchEngine):
-    """Render 'The Private Search Instrument' Search Page."""
+def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None):
+    """Render the professional Search workspace."""
     inject_design_system()
 
     repo = search_engine.repository
     stats = repo.get_dashboard_stats()
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # 1. CALM HERO HEADER
-    # ─────────────────────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <div style="margin-bottom: 20px;">
-            <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <h1 style="font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; color: #15181E;">
-                    Search Documents & Media
-                </h1>
-                <span style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.75rem; color: #697386;">
-                    Scope: Local Zero-Trust
-                </span>
-            </div>
-            <p style="font-size: 0.90rem; color: #4A5160; margin-top: 0; margin-bottom: 12px; line-height: 1.5;">
-                Search your authorized local files by conceptual meaning, natural language passage, or exact terms.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    if pipeline is None and "pipeline" in st.session_state:
+        pipeline = st.session_state.pipeline
+    if watcher is None and "watcher" in st.session_state:
+        watcher = st.session_state.watcher
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 2. TRUTHFUL EMPTY INDEX STATE
+    # 1. HEADER & TOP ACTIONS
+    # ─────────────────────────────────────────────────────────────────────────
+    col_header, col_add_file, col_add_folder = st.columns([3.8, 1.1, 1.1])
+
+    with col_header:
+        st.markdown(
+            """
+            <div style="margin-bottom: 14px;">
+                <h1 style="font-size: 1.85rem; font-weight: 700; color: #15181E; margin: 0 0 4px 0; letter-spacing: -0.015em;">
+                    Search
+                </h1>
+                <p style="font-size: 0.90rem; color: #4A5160; margin: 0; line-height: 1.4;">
+                    Search local documents and media by conceptual meaning, text passage, or filename.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_add_file:
+        if st.button("Add Files", key="btn_top_add_files", use_container_width=True):
+            st.session_state["show_add_modal"] = "files"
+
+    with col_add_folder:
+        if st.button("Add Folder", key="btn_top_add_folder", type="primary", use_container_width=True):
+            st.session_state["show_add_modal"] = "folder"
+
+    # Inline Quick Add Panel if triggered
+    active_modal = st.session_state.get("show_add_modal")
+    if active_modal == "files":
+        with st.container():
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Add Files to Library</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 10px;">Select individual files from your computer to authorize and index.</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            c_pick, c_cancel = st.columns([2, 1])
+            with c_pick:
+                if st.button("Browse Files on Windows...", key="modal_browse_files"):
+                    selected = pick_files_dialog("Select files to add to SeekVault")
+                    if selected and pipeline:
+                        added = 0
+                        for f_path in selected:
+                            p = Path(f_path)
+                            parent_dir = str(p.parent)
+                            if not repo.is_path_authorized(str(p)):
+                                repo.add_authorized_folder(parent_dir, is_recursive=False)
+                            res = pipeline.process_file(str(p))
+                            if res and res.get("status") == "INDEXED":
+                                added += 1
+                        st.success(f"Successfully indexed {added} file(s).")
+                        st.session_state["show_add_modal"] = None
+                        st.rerun()
+            with c_cancel:
+                if st.button("Close", key="modal_close_files"):
+                    st.session_state["show_add_modal"] = None
+                    st.rerun()
+
+    elif active_modal == "folder":
+        with st.container():
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Authorize Local Directory</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; margin-bottom: 10px;">Choose a folder to index. SeekVault will read and index files locally without moving or altering them.</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            c_pick, c_cancel = st.columns([2, 1])
+            with c_pick:
+                if st.button("Browse Folder on Windows...", key="modal_browse_folder"):
+                    folder = pick_folder_dialog("Select folder to authorize for SeekVault")
+                    if folder and pipeline:
+                        fid = repo.add_authorized_folder(folder, is_recursive=True)
+                        count = pipeline.scan_folder(folder, is_recursive=True)
+                        if watcher:
+                            watcher.sync_watches()
+                        st.success(f"Authorized '{Path(folder).name}' and indexed {count} file(s).")
+                        st.session_state["show_add_modal"] = None
+                        st.rerun()
+            with c_cancel:
+                if st.button("Close", key="modal_close_folder"):
+                    st.session_state["show_add_modal"] = None
+                    st.rerun()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2. EMPTY LIBRARY STATE
     # ─────────────────────────────────────────────────────────────────────────
     if stats["total_files"] == 0:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 36px 24px; text-align: center; margin-top: 14px;">
-                <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
-                    No files are currently indexed in your local vault
+            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 40px 24px; text-align: center; margin-top: 14px;">
+                <div style="font-size: 1.1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+                    No files in your library yet
                 </div>
-                <p style="font-size: 0.88rem; color: #4A5160; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
-                    SeekVault only indexes folders you explicitly authorize. To begin searching, open the <strong>File Library</strong> in the navigation and authorize a local folder.
+                <p style="font-size: 0.88rem; color: #4A5160; max-width: 480px; margin: 0 auto 18px auto; line-height: 1.5;">
+                    SeekVault indexes only the folders and files you explicitly authorize on this computer. Select files or an entire folder to begin searching.
                 </p>
             </div>
             """,
@@ -96,140 +171,103 @@ def render_search_page(search_engine: SearchEngine):
         )
         return
 
-    # Check session query pre-population (e.g. from sample chip clicks)
-    current_preset = st.session_state.get("search_query_preset", "")
-
     # ─────────────────────────────────────────────────────────────────────────
-    # 3. HERO SEARCH INPUT (PRIMARY INTERACTION)
+    # 3. SEARCH INPUT & ACTION
     # ─────────────────────────────────────────────────────────────────────────
-    query = st.text_input(
-        "Search your vault:",
-        value=current_preset,
-        placeholder="Type a concept, question, or term (e.g., 'candidate elimination algorithm', 'database BCNF normalization', 'red car parked')...",
-        key="search_hero_input",
-        label_visibility="collapsed"
-    )
+    preset_query = st.session_state.get("search_query_preset", "")
 
-    # Clear preset after applying to input
-    if current_preset:
+    col_input, col_btn = st.columns([4.2, 0.8])
+    with col_input:
+        query = st.text_input(
+            "Search query",
+            value=preset_query,
+            placeholder="Search files or concepts (e.g. candidate elimination, normalization, receipts)...",
+            key="search_main_input",
+            label_visibility="collapsed"
+        )
+    with col_btn:
+        search_clicked = st.button("Search", type="primary", use_container_width=True)
+
+    if preset_query:
         st.session_state.search_query_preset = ""
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 4. COMPACT INLINE FILTER ROW
+    # 4. COMPACT INLINE FILTERS
     # ─────────────────────────────────────────────────────────────────────────
-    col_mode, col_type, col_folder, col_threshold = st.columns([1.6, 1.3, 2.0, 1.1])
+    fc1, fc2, fc3 = st.columns([1.5, 2.2, 1.3])
 
-    with col_mode:
-        search_mode = st.selectbox(
-            "Retrieval Mode",
-            ["Hybrid (RRF)", "Semantic Only", "Keyword Only"],
-            index=0,
-            label_visibility="collapsed",
-            help="Hybrid merges SQLite FTS5 exact keyword hits with FAISS semantic vectors via Reciprocal Rank Fusion."
-        )
-
-    with col_type:
+    with fc1:
         type_choice = st.selectbox(
-            "File Format",
-            ["All Formats", "Documents", "Images"],
+            "File Type",
+            ["All Types", "Documents (PDF, DOCX, TXT)", "Images (PNG, JPG)"],
             index=0,
             label_visibility="collapsed"
         )
-        if type_choice == "Documents":
-            file_types_filter = ["DOCUMENT"]
-        elif type_choice == "Images":
-            file_types_filter = ["IMAGE"]
+        if "Documents" in type_choice:
+            selected_file_types = ["DOCUMENT"]
+        elif "Images" in type_choice:
+            selected_file_types = ["IMAGE"]
         else:
-            file_types_filter = None
+            selected_file_types = None
 
-    with col_folder:
+    with fc2:
         auth_folders = repo.get_authorized_folders()
-        folder_options = {"All Authorized Folders": None}
+        folder_options = {"All Folders": None}
         for f in auth_folders:
             folder_name = Path(f["folder_path"]).name or f["folder_path"]
-            folder_options[f"Folder: {folder_name}"] = f["id"]
-
+            folder_options[f"{folder_name}"] = f["id"]
         selected_folder_label = st.selectbox(
-            "Folder Scope",
+            "Folder",
             list(folder_options.keys()),
             index=0,
             label_visibility="collapsed"
         )
         selected_folder_id = folder_options[selected_folder_label]
-        folder_filter_ids = [selected_folder_id] if selected_folder_id is not None else None
+        selected_folder_ids = [selected_folder_id] if selected_folder_id else None
 
-    with col_threshold:
-        min_score = st.slider(
-            "Threshold",
-            min_value=0.10,
-            max_value=0.80,
-            value=0.15,
-            step=0.05,
-            label_visibility="collapsed",
-            help="Minimum similarity score threshold (default: 0.15)"
+    with fc3:
+        date_filter = st.selectbox(
+            "Date Modified",
+            ["Any Time", "Past 7 Days", "Past 30 Days", "Past Year"],
+            index=0,
+            label_visibility="collapsed"
         )
 
-    st.markdown("<hr style='border: none; border-top: 1px solid #E6E2D8; margin: 12px 0 16px 0;' />", unsafe_allow_html=True)
+    # ─────────────────────────────────────────────────────────────────────────
+    # 5. QUERY EXECUTION & RESULTS PRESENTATION
+    # ─────────────────────────────────────────────────────────────────────────
+    q_str = query.strip()
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # 5. EXECUTION & RESULTS STREAM
-    # ─────────────────────────────────────────────────────────────────────────
-    if query and query.strip():
-        q_str = query.strip()
+    if q_str:
         start_t = time.perf_counter()
-
         try:
-            if "Hybrid" in search_mode:
-                raw_results = search_engine.search_hybrid(
-                    q_str,
-                    top_k=20,
-                    min_score=min_score,
-                    folder_ids=folder_filter_ids,
-                    file_types=file_types_filter
-                )
-            elif "Keyword" in search_mode:
-                fts_rows = repo.fts_search_content(
-                    q_str,
-                    top_k=20,
-                    folder_ids=folder_filter_ids,
-                    file_types=file_types_filter
-                )
-                raw_results = []
-                for row in fts_rows:
-                    f_rec = repo.get_file_by_id(row["file_id"])
-                    if f_rec and repo.is_path_authorized(f_rec["file_path"]):
-                        enriched = search_engine._enrich_result(
-                            f_rec,
-                            score=1.0,
-                            excerpt=row.get("excerpt", ""),
-                            relevance_label="Keyword"
-                        )
-                        raw_results.append(enriched)
-            else:
-                # Semantic Only
-                if file_types_filter == ["IMAGE"]:
-                    raw_results = search_engine.search_images(q_str, top_k=20, min_score=min_score)
-                    if folder_filter_ids:
-                        raw_results = [r for r in raw_results if r.get("folder_id") in folder_filter_ids]
-                else:
-                    raw_results = search_engine.search_text_filtered(
-                        q_str,
-                        top_k=20,
-                        min_score=min_score,
-                        folder_ids=folder_filter_ids,
-                        file_types=file_types_filter
-                    )
-                    for r in raw_results:
-                        r["relevance_label"] = "Semantic"
-
+            # Perform hybrid retrieval with active filters
+            raw_results = search_engine.search_hybrid(
+                query=q_str,
+                top_k=30,
+                folder_ids=selected_folder_ids,
+                file_types=selected_file_types
+            )
             elapsed_ms = (time.perf_counter() - start_t) * 1000.0
 
-            # Filter out any lingering unauthorized records
-            if folder_filter_ids:
-                results = [
-                    r for r in raw_results 
-                    if repo.get_file_by_id(r["file_id"]) and repo.get_file_by_id(r["file_id"])["folder_id"] in folder_filter_ids
-                ]
+            # Filter by date if selected
+            if date_filter != "Any Time":
+                now = datetime.now()
+                days = 7 if "7 Days" in date_filter else (30 if "30 Days" in date_filter else 365)
+                cutoff = now - timedelta(days=days)
+                filtered_results = []
+                for r in raw_results:
+                    m_str = r.get("modified_at")
+                    if m_str:
+                        try:
+                            dt = datetime.strptime(m_str[:19], "%Y-%m-%d %H:%M:%S")
+                            if dt >= cutoff:
+                                filtered_results.append(r)
+                        except Exception:
+                            filtered_results.append(r)
+                    else:
+                        filtered_results.append(r)
+                results = filtered_results
             else:
                 results = raw_results
 
@@ -238,142 +276,107 @@ def render_search_page(search_engine: SearchEngine):
             results = []
             elapsed_ms = 0.0
 
-        # Stream Metrics Header
+        # Result summary count
         st.markdown(
             f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.78rem; color: #697386;">
-                <div>
-                    <span>FOUND <strong style="color: #15181E;">{len(results)}</strong> RELEVANT FILE(S)</span>
-                    <span> • </span>
-                    <span>{elapsed_ms:.1f}ms (local CPU)</span>
-                </div>
-                <div>MODE: {search_mode.upper()}</div>
+            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.78rem; color: #697386; margin: 12px 0 16px 0;">
+                FOUND <strong style="color: #15181E;">{len(results)}</strong> FILE(S) ({elapsed_ms:.0f}ms)
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        # Truthful Empty Results State
         if not results:
             st.markdown(
                 f"""
                 <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 32px 20px; text-align: center; margin-top: 10px;">
                     <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
-                        No matching documents found for &ldquo;{q_str}&rdquo;
+                        No matching files found for &ldquo;{q_str}&rdquo;
                     </div>
                     <p style="font-size: 0.85rem; color: #4A5160; max-width: 440px; margin: 0 auto; line-height: 1.5;">
-                        Try using broader concepts, lowering the threshold slider, or switching to <strong>Hybrid (RRF)</strong> mode to catch exact keywords.
+                        Try using broader search terms, clearing active filters, or adding more folders to your library.
                     </p>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         else:
-            # Render Genuine Document Cards
+            # Clean list of results (no internal algorithmic scores)
             for idx, res in enumerate(results, 1):
-                tier_badge = render_tier_badge(res.get("privacy_tier", "FULL"))
-                rel_badge = render_relevance_badge(res.get("relevance_label", "Semantic"))
                 format_badge = _get_format_badge(res.get("file_extension", ""))
-
                 file_sz = format_file_size(res.get("file_size", 0))
                 mod_time = res.get("modified_at", "Unknown")
                 file_path = res.get("file_path", "")
-
-                score_val = res.get("similarity_score", 0.0)
-                if "Hybrid" in search_mode:
-                    score_txt = f"RRF Score: {score_val:.3f}"
-                    sem_score = res.get("semantic_score")
-                    if sem_score is not None:
-                        score_txt += f" | Cosine: {sem_score:.2f}"
-                else:
-                    score_txt = f"Similarity: {int(score_val * 100)}%"
-
                 raw_snippet = res.get("preview") or ""
-                formatted_snippet = _format_snippet(raw_snippet[:500], q_str) if raw_snippet else ""
+                formatted_snippet = _format_snippet(raw_snippet[:450], q_str) if raw_snippet else ""
 
                 with st.container():
-                    col_card, col_thumb = st.columns([3.8, 1.2])
+                    col_info, col_actions = st.columns([4.0, 1.0])
 
-                    with col_card:
-                        # Top Headline: Format + Name + Badges
+                    with col_info:
+                        # File Name + Format Badge
                         st.markdown(
                             f"""
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    {format_badge}
-                                    <span style="font-size: 1rem; font-weight: 600; color: #15181E;">
-                                        {res['file_name']}
-                                    </span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    {rel_badge}
-                                    {tier_badge}
-                                </div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                {format_badge}
+                                <span style="font-size: 0.98rem; font-weight: 600; color: #15181E;">
+                                    {res['file_name']}
+                                </span>
                             </div>
                             """,
                             unsafe_allow_html=True
                         )
 
-                        # Snippet Box
+                        # Genuine Passage Excerpt if available
                         if formatted_snippet:
-                            if res.get("privacy_tier") == "REDACTED":
-                                st.markdown(
-                                    "<div style='font-size: 0.72rem; color: #92400E; font-family: \"JetBrains Mono\", monospace; margin-bottom: 2px;'>PROTECTED: Direct PII tokens were sanitized before vector generation</div>",
-                                    unsafe_allow_html=True
-                                )
                             st.markdown(
                                 f"<div class='instrument-snippet'>{formatted_snippet}</div>",
                                 unsafe_allow_html=True
                             )
 
-                        # Metadata and File Path (Monospace code for 1-click copy)
-                        st.code(file_path, language=None)
+                        # Location Path and Metadata
+                        st.markdown(
+                            f"""
+                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #697386; word-break: break-all;">
+                                {file_path}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #4A5160; margin-top: 3px;">
+                                {file_sz} &nbsp;•&nbsp; Modified {mod_time}
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
 
-                        # Action Row
-                        btn_col1, btn_col2, btn_meta = st.columns([1, 1.3, 2.5])
-                        with btn_col1:
-                            if st.button("👁️ Open", key=f"btn_open_{res['file_id']}_{idx}"):
-                                ok, msg = open_file_in_os(file_path)
-                                if not ok:
-                                    st.warning(msg)
-                        with btn_col2:
-                            if st.button("📂 Reveal", key=f"btn_reveal_{res['file_id']}_{idx}"):
-                                ok, msg = open_folder_in_os(file_path)
-                                if not ok:
-                                    st.warning(msg)
-                        with btn_meta:
-                            st.caption(f"{file_sz} • {mod_time} • {score_txt}")
+                    with col_actions:
+                        if st.button("Open", key=f"search_open_{res['file_id']}_{idx}", use_container_width=True):
+                            ok, msg = open_file_in_os(file_path)
+                            if not ok:
+                                st.warning(msg)
 
-                    with col_thumb:
-                        # Real Image Thumbnail
-                        if res.get("file_type") == "IMAGE" and os.path.exists(file_path):
-                            try:
-                                img = Image.open(file_path)
-                                st.image(img, caption=f"{img.width}x{img.height}", use_container_width=True)
-                            except Exception:
-                                st.caption("Thumbnail unavailable")
+                        if st.button("Reveal in Explorer", key=f"search_reveal_{res['file_id']}_{idx}", use_container_width=True):
+                            ok, msg = open_folder_in_os(file_path)
+                            if not ok:
+                                st.warning(msg)
 
-                    st.markdown("<hr style='border: none; border-top: 1px solid #E6E2D8; margin: 12px 0 16px 0;' />", unsafe_allow_html=True)
+                    st.markdown("<hr style='border: none; border-top: 1px solid #E6E2D8; margin: 12px 0 14px 0;' />", unsafe_allow_html=True)
 
     else:
-        # ─────────────────────────────────────────────────────────────────────
-        # 6. PROMPT STARTER (EMPTY QUERY STATE)
-        # ─────────────────────────────────────────────────────────────────────
+        # Prompt Starters for initial orientation
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 32px 24px; text-align: center; margin-top: 16px;">
-                <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
-                    Search your local vault by conceptual meaning
+            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 28px 24px; text-align: center; margin-top: 16px;">
+                <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+                    Search your library
                 </div>
-                <p style="font-size: 0.86rem; color: #4A5160; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
-                    SeekVault indexes full documents and images locally. Click any query starter below to test retrieval against your indexed files:
+                <p style="font-size: 0.86rem; color: #4A5160; max-width: 460px; margin: 0 auto 14px auto; line-height: 1.5;">
+                    Type a query above to search through indexed documents and images, or test search with one of these examples:
                 </p>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
         sc1, sc2, sc3 = st.columns(3)
         with sc1:
@@ -388,4 +391,3 @@ def render_search_page(search_engine: SearchEngine):
             if st.button("Red Car Parked Outside", key="sample_q3", use_container_width=True):
                 st.session_state.search_query_preset = "red car parked near a building"
                 st.rerun()
-

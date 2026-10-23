@@ -128,3 +128,27 @@ def test_folder_file_counts_breakdown(tmp_path):
     assert counts[fid]["indexed"] == 2
     assert counts[fid]["failed"] == 1
     assert counts[fid]["pending"] == 1
+
+
+def test_my_files_import_and_review(tmp_path):
+    """Verify render_my_files_page is callable and _inspect_directory classifies formats accurately."""
+    from seekvault.ui.pages.file_library import render_my_files_page, _inspect_directory
+
+    assert callable(render_my_files_page)
+
+    test_dir = tmp_path / "mixed_folder"
+    test_dir.mkdir()
+    (test_dir / "report.pdf").write_text("sample pdf", encoding="utf-8")
+    (test_dir / "notes.txt").write_text("sample notes", encoding="utf-8")
+    (test_dir / "script.py").write_text("print('hello')", encoding="utf-8")
+    (test_dir / "binary.exe").write_bytes(b"\x00\x01\x02")
+
+    res = _inspect_directory(str(test_dir), recursive=True)
+    assert res["total"] == 4
+    supported_names = [p.name for p in res["supported"]]
+    unsupported_names = [p.name for p in res["unsupported"]]
+
+    assert "report.pdf" in supported_names
+    assert "notes.txt" in supported_names
+    assert "binary.exe" in unsupported_names
+    assert "script.py" in unsupported_names

@@ -2,6 +2,9 @@ import streamlit as st
 import os
 import pandas as pd
 from pathlib import Path
+from typing import List, Dict, Any, Optional
+
+from seekvault.config import DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS
 from seekvault.database.repository import Repository
 from seekvault.ingestion.pipeline import IngestionPipeline
 from seekvault.monitoring.watcher import WatcherManager
@@ -12,48 +15,77 @@ from seekvault.ui.components import (
     open_folder_in_os,
     inject_design_system,
 )
+from seekvault.ui.platform import pick_folder_dialog, pick_files_dialog
 
 
-def render_file_library_page(
+def _inspect_directory(folder_path: str, recursive: bool = True) -> Dict[str, Any]:
+    """Inspect directory contents to categorize supported and unsupported formats prior to indexing."""
+    supported = []
+    unsupported = []
+    all_supported_exts = DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS
+
+    p = Path(folder_path)
+    if not p.exists() or not p.is_dir():
+        return {"supported": [], "unsupported": [], "total": 0}
+
+    pattern = "**/*" if recursive else "*"
+    try:
+        candidates = list(p.glob(pattern))
+    except Exception:
+        candidates = []
+
+    for c in candidates:
+        if c.is_file():
+            ext = c.suffix.lower()
+            if ext in all_supported_exts:
+                supported.append(c)
+            else:
+                unsupported.append(c)
+
+    return {
+        "supported": supported,
+        "unsupported": unsupported,
+        "total": len(supported) + len(unsupported)
+    }
+
+
+def render_my_files_page(
     repo: Repository,
     pipeline: IngestionPipeline,
     watcher: WatcherManager
 ):
+    """Render the professional My Files workspace."""
     inject_design_system()
 
     st.markdown(
         """
         <div style="margin-bottom: 20px;">
-            <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <h1 style="font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; color: #15181E;">
-                    File Library & Storage
-                </h1>
-                <span style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.75rem; color: #697386;">
-                    Scope: Authorized Directories & Registry
-                </span>
-            </div>
-            <p style="font-size: 0.90rem; color: #4A5160; margin-top: 0; margin-bottom: 12px; line-height: 1.5;">
-                Manage authorized local directories and inspect indexed file representations with verifiable privacy boundaries.
+            <h1 style="font-size: 1.85rem; font-weight: 700; color: #15181E; margin: 0 0 4px 0; letter-spacing: -0.015em;">
+                My Files
+            </h1>
+            <p style="font-size: 0.90rem; color: #4A5160; margin: 0; line-height: 1.4;">
+                Manage authorized local folders, review files before indexing, and inspect your library status.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    tab_folders, tab_files = st.tabs(["Authorized Locations", "Indexed Files Registry"])
+    tab_folders, tab_files = st.tabs(["Authorized Folders", "Indexed Library"])
 
     # ═════════════════════════════════════════════════════════════════════════
-    # TAB 1: AUTHORIZED FOLDERS MANAGEMENT
+    # TAB 1: AUTHORIZED FOLDERS & IMPORT
     # ═════════════════════════════════════════════════════════════════════════
     with tab_folders:
+        # Non-destruction assurance banner
         st.markdown(
             """
-            <div style="background-color: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(22, 25, 30, 0.02);">
+            <div style="background-color: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;">
                 <div style="font-size: 0.88rem; color: #15181E; font-weight: 600; margin-bottom: 2px;">
-                    Strict Non-Mutation Guarantee
+                    Local-Only, Non-Destructive Storage
                 </div>
                 <div style="font-size: 0.84rem; color: #4A5160; line-height: 1.5;">
-                    Revoking folder authorization removes files from the search index immediately. 
+                    SeekVault scans and indexes files in read-only mode. 
                     <strong>Your original physical files on disk are strictly never deleted, moved, or altered.</strong>
                 </div>
             </div>
@@ -61,254 +93,354 @@ def render_file_library_page(
             unsafe_allow_html=True
         )
 
-        # ── Revocation Confirmation State ────────────────────────────────────
-        if "pending_revoke_folder_id" not in st.session_state:
-            st.session_state.pending_revoke_folder_id = None
-        if "pending_revoke_folder_path" not in st.session_state:
-            st.session_state.pending_revoke_folder_path = ""
+        # ── Folder Import Controls ──
+        c_add_fld, c_add_fls = st.columns(2)
 
-        if st.session_state.pending_revoke_folder_id is not None:
-            folder_id = st.session_state.pending_revoke_folder_id
-            folder_path = st.session_state.pending_revoke_folder_path
-
-            st.warning(
-                f"⚠️ **Confirm Authorization Revocation**\n\n"
-                f"Are you sure you want to remove authorization for:\n\n"
-                f"`{folder_path}`\n\n"
-                f"- All search vectors, content previews, and metadata will be purged from SeekVault.\n"
-                f"- **Your original source files on disk will NOT be touched or deleted.**\n"
-                f"- You can re-authorize this directory at any time."
+        with c_add_fld:
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Authorize Folder</div>
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-bottom: 12px;">Select a local folder to monitor and index its supported documents and images.</div>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
-            col_confirm, col_cancel, _ = st.columns([1.2, 1, 3])
-            with col_confirm:
-                if st.button("✅ Yes, Revoke Authorization", type="primary", key="confirm_revoke_btn"):
-                    repo.remove_authorized_folder(folder_id)
-                    watcher.sync_watches()
-                    st.session_state.pending_revoke_folder_id = None
-                    st.session_state.pending_revoke_folder_path = ""
-                    st.success("Authorization safely revoked. Your files on disk remain untouched.")
-                    st.rerun()
-            with col_cancel:
-                if st.button("❌ Cancel", key="cancel_revoke_btn"):
-                    st.session_state.pending_revoke_folder_id = None
-                    st.session_state.pending_revoke_folder_path = ""
+            if st.button("Browse Folder on Windows...", key="btn_browse_folder_main", type="primary"):
+                picked = pick_folder_dialog("Select folder to authorize for SeekVault")
+                if picked:
+                    st.session_state["review_folder_path"] = picked
                     st.rerun()
 
-            st.markdown("---")
+        with c_add_fls:
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Add Individual Files</div>
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-bottom: 12px;">Select one or more documents or images from anywhere on your PC to index.</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button("Browse Files on Windows...", key="btn_browse_files_main"):
+                picked_files = pick_files_dialog("Select documents or images to index")
+                if picked_files:
+                    st.session_state["review_files_list"] = picked_files
+                    st.rerun()
 
-        # ── Add New Folder ───────────────────────────────────────────────────
-        with st.expander("Authorize New Directory", expanded=False):
-            with st.form("add_auth_folder_form", clear_on_submit=True):
-                folder_input = st.text_input(
-                    "Directory Path",
-                    placeholder=r"e.g., C:\Users\Documents\Research or D:\Projects\Notes",
-                    help="Enter absolute path to a folder on this computer."
-                )
-                col_rec, col_sub = st.columns([2, 1])
-                with col_rec:
-                    is_rec = st.checkbox("Include sub-folders (recursive indexing)", value=True)
-                with col_sub:
-                    submitted = st.form_submit_button("Authorize & Scan", type="primary", use_container_width=True)
+        # ── Pre-Indexing Review (Folder) ──
+        if "review_folder_path" in st.session_state and st.session_state["review_folder_path"]:
+            rf_path = st.session_state["review_folder_path"]
+            inspect_info = _inspect_directory(rf_path, recursive=True)
 
-                if submitted:
-                    raw = folder_input.strip()
+            st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Review Folder Before Indexing</div>
+                    <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.82rem; color: #15181E; margin-bottom: 8px;">{rf_path}</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; line-height: 1.5;">
+                        Found <strong>{inspect_info['total']}</strong> items: 
+                        <strong style="color: #166534;">{len(inspect_info['supported'])} supported</strong> documents and images ready to index, 
+                        <span style="color: #697386;">{len(inspect_info['unsupported'])} unsupported formats</span> will be skipped.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            c_start_fld, c_cancel_fld = st.columns([1.5, 1])
+            with c_start_fld:
+                if st.button("Start Indexing Folder", key="btn_confirm_index_fld", type="primary"):
+                    with st.spinner(f"Indexing '{Path(rf_path).name}'..."):
+                        fid = repo.add_authorized_folder(rf_path, is_recursive=True)
+                        count = pipeline.scan_folder(rf_path, is_recursive=True)
+                        watcher.sync_watches()
+                    st.success(f"Indexed {count} supported file(s) from '{Path(rf_path).name}'.")
+                    st.session_state["review_folder_path"] = None
+                    st.rerun()
+            with c_cancel_fld:
+                if st.button("Cancel Import", key="btn_cancel_fld"):
+                    st.session_state["review_folder_path"] = None
+                    st.rerun()
+
+        # ── Pre-Indexing Review (Individual Files) ──
+        if "review_files_list" in st.session_state and st.session_state["review_files_list"]:
+            flist = st.session_state["review_files_list"]
+            st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div style="background: #FFFFFF; border: 1px solid #BFDBFE; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Review Files Before Indexing</div>
+                    <div style="font-size: 0.85rem; color: #4A5160; line-height: 1.5;">
+                        Selected <strong>{len(flist)}</strong> file(s) for indexing.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            c_start_fls, c_cancel_fls = st.columns([1.5, 1])
+            with c_start_fls:
+                if st.button("Start Indexing Files", key="btn_confirm_index_fls", type="primary"):
+                    indexed = 0
+                    with st.spinner("Indexing selected files..."):
+                        for fp in flist:
+                            p = Path(fp)
+                            parent_dir = str(p.parent)
+                            if not repo.is_path_authorized(str(p)):
+                                repo.add_authorized_folder(parent_dir, is_recursive=False)
+                            res = pipeline.process_file(str(p))
+                            if res and res.get("status") == "INDEXED":
+                                indexed += 1
+                        watcher.sync_watches()
+                    st.success(f"Successfully indexed {indexed} file(s).")
+                    st.session_state["review_files_list"] = None
+                    st.rerun()
+            with c_cancel_fls:
+                if st.button("Cancel Files Import", key="btn_cancel_fls"):
+                    st.session_state["review_files_list"] = None
+                    st.rerun()
+
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+
+        # ── Manual Path Entry Fallback Expander ──
+        with st.expander("Or enter folder path manually", expanded=False):
+            with st.form("manual_folder_form", clear_on_submit=True):
+                manual_input = st.text_input("Absolute folder path", placeholder=r"C:\Users\Documents\Research")
+                rec_check = st.checkbox("Include subfolders (recursive)", value=True)
+                submitted_manual = st.form_submit_button("Authorize Folder")
+                if submitted_manual:
+                    raw = manual_input.strip()
                     if not raw:
                         st.error("Please provide a folder path.")
                     elif not os.path.isabs(raw):
-                        st.error(f"Path must be absolute. Received: `{raw}`")
+                        st.error(f"Path must be absolute: `{raw}`")
                     elif not os.path.exists(raw):
-                        st.error(f"Directory does not exist on disk: `{raw}`")
-                    elif not os.path.isdir(raw):
-                        st.error(f"Path is not a directory: `{raw}`")
+                        st.error(f"Directory not found on disk: `{raw}`")
                     else:
-                        try:
-                            repo.add_authorized_folder(raw, is_recursive=is_rec)
-                            with st.spinner(f"Scanning and indexing `{raw}`..."):
-                                count = pipeline.scan_folder(raw, is_recursive=is_rec)
-                            watcher.sync_watches()
-                            st.success(f"✅ Authorized and indexed **{count} file(s)** from `{raw}`.")
-                            st.rerun()
-                        except ValueError as err:
-                            st.error(f"Cannot authorize folder: {err}")
-                        except Exception as err:
-                            st.error(f"Unexpected error during folder indexing: {err}")
+                        fid = repo.add_authorized_folder(raw, is_recursive=rec_check)
+                        count = pipeline.scan_folder(raw, is_recursive=rec_check)
+                        watcher.sync_watches()
+                        st.success(f"Authorized '{Path(raw).name}' and indexed {count} file(s).")
+                        st.rerun()
 
-        # ── Active Locations List ────────────────────────────────────────────
-        st.subheader("Authorized Locations")
-        folders = repo.get_authorized_folders()
+        # ── Confirmation State for Removing a Folder ──
+        if "pending_revoke_folder_id" in st.session_state and st.session_state["pending_revoke_folder_id"] is not None:
+            folder_id = st.session_state["pending_revoke_folder_id"]
+            folder_path = st.session_state.get("pending_revoke_folder_path", "")
+
+            st.markdown(
+                f"""
+                <div style="background: #FEF2F2; border: 1px solid #FECACA; border-left: 4px solid #B42318; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                    <div style="font-size: 0.95rem; font-weight: 600; color: #B42318; margin-bottom: 4px;">Confirm Removing Folder from SeekVault</div>
+                    <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.82rem; color: #15181E; margin-bottom: 8px;">{folder_path}</div>
+                    <div style="font-size: 0.84rem; color: #4A5160; line-height: 1.5;">
+                        This removes the folder and its files from SeekVault's search index. 
+                        <strong>Your original files on disk will strictly NOT be deleted, moved, or altered.</strong>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            c_yes_del, c_no_del = st.columns([1.5, 1])
+            with c_yes_del:
+                if st.button("Remove from Index", key="btn_confirm_revoke", type="primary"):
+                    repo.remove_authorized_folder(folder_id)
+                    watcher.sync_watches()
+                    st.session_state["pending_revoke_folder_id"] = None
+                    st.session_state["pending_revoke_folder_path"] = ""
+                    st.success("Folder removed from index. Physical files on disk remain untouched.")
+                    st.rerun()
+            with c_no_del:
+                if st.button("Cancel", key="btn_cancel_revoke"):
+                    st.session_state["pending_revoke_folder_id"] = None
+                    st.session_state["pending_revoke_folder_path"] = ""
+                    st.rerun()
+
+        # ── Currently Authorized Folders List ──
+        st.markdown(
+            """
+            <div style="font-size: 1.1rem; font-weight: 600; color: #15181E; margin: 20px 0 10px 0;">
+                Authorized Folders
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        auth_folders = repo.get_authorized_folders()
         folder_counts = repo.get_folder_file_counts()
 
-        if not folders:
-            st.info(
-                "👋 **No folders currently authorized.** Enter a folder path above to begin indexing your files."
+        if not auth_folders:
+            st.markdown(
+                """
+                <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 24px; text-align: center; color: #4A5160;">
+                    No authorized folders configured. Use the buttons above to authorize a folder or add files.
+                </div>
+                """,
+                unsafe_allow_html=True
             )
         else:
-            for f in folders:
+            for f in auth_folders:
                 fid = f["id"]
-                active = bool(f["is_active"])
+                f_path = f["folder_path"]
+                f_name = Path(f_path).name or f_path
+                is_rec = bool(f.get("is_recursive", 1))
                 counts = folder_counts.get(fid, {"indexed": 0, "failed": 0, "pending": 0})
 
                 with st.container():
-                    c_status, c_info, c_actions = st.columns([0.8, 3.8, 2.2])
-
-                    with c_status:
-                        toggle = st.toggle(
-                            "Active" if active else "Paused",
-                            value=active,
-                            key=f"lib_toggle_{fid}",
-                            help="Pausing excludes this folder's files from search results."
-                        )
-                        if toggle != active:
-                            repo.set_folder_active_state(fid, toggle)
-                            watcher.sync_watches()
-                            st.rerun()
+                    c_info, c_actions = st.columns([3.8, 1.2])
 
                     with c_info:
-                        st.markdown(f"**`{f['folder_path']}`**")
-                        rec_label = "Recursive" if f["is_recursive"] else "Top-level only"
-                        status_summary = f"{counts['indexed']} indexed"
-                        if counts["failed"] > 0:
-                            status_summary += f" | <span style='color:#DC2626;'>{counts['failed']} failed</span>"
-                        if counts["pending"] > 0:
-                            status_summary += f" | <span style='color:#D97706;'>{counts['pending']} pending</span>"
-
                         st.markdown(
-                            f"<span style='font-size:0.80rem; font-family: \"JetBrains Mono\", Consolas, monospace; color:#697386;'>{rec_label} &nbsp;•&nbsp; {status_summary}</span>",
+                            f"""
+                            <div style="font-size: 0.95rem; font-weight: 600; color: #15181E;">
+                                {f_name}
+                            </div>
+                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.74rem; color: #697386;">
+                                {f_path}
+                            </div>
+                            <div style="font-size: 0.78rem; color: #4A5160; margin-top: 3px;">
+                                {counts['indexed']} indexed &nbsp;•&nbsp; {'Recursive' if is_rec else 'Direct only'}
+                                {f" &nbsp;•&nbsp; <span style='color:#B42318;'>{counts['failed']} failed</span>" if counts['failed'] > 0 else ""}
+                            </div>
+                            """,
                             unsafe_allow_html=True
                         )
 
                     with c_actions:
-                        btn_col1, btn_col2 = st.columns(2)
-                        with btn_col1:
-                            if st.button("Re-scan", key=f"lib_rescan_{fid}", use_container_width=True):
-                                if os.path.exists(f["folder_path"]):
-                                    with st.spinner(f"Re-scanning `{f['folder_path']}`..."):
-                                        c = pipeline.scan_folder(f["folder_path"], is_recursive=bool(f["is_recursive"]))
+                        c_rescan, c_revoke = st.columns(2)
+                        with c_rescan:
+                            if st.button("Re-scan", key=f"fld_rescan_{fid}", use_container_width=True):
+                                if os.path.exists(f_path):
+                                    with st.spinner("Scanning..."):
+                                        c = pipeline.scan_folder(f_path, is_recursive=is_rec)
                                     watcher.sync_watches()
                                     st.success(f"Synced {c} file(s).")
                                     st.rerun()
                                 else:
                                     st.error("Folder no longer exists on disk.")
 
-                        with btn_col2:
-                            if st.button("Revoke", key=f"lib_revoke_{fid}", use_container_width=True):
-                                st.session_state.pending_revoke_folder_id = fid
-                                st.session_state.pending_revoke_folder_path = f["folder_path"]
+                        with c_revoke:
+                            if st.button("Remove", key=f"fld_revoke_{fid}", use_container_width=True):
+                                st.session_state["pending_revoke_folder_id"] = fid
+                                st.session_state["pending_revoke_folder_path"] = f_path
                                 st.rerun()
 
-                    st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #E6E2D8;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='border: none; border-top: 1px solid #E6E2D8; margin: 10px 0 12px 0;' />", unsafe_allow_html=True)
 
     # ═════════════════════════════════════════════════════════════════════════
-    # TAB 2: INDEXED FILE BROWSER & DEEP INSPECTOR
+    # TAB 2: INDEXED LIBRARY INSPECTOR
     # ═════════════════════════════════════════════════════════════════════════
     with tab_files:
-        st.subheader("Indexed File Records")
+        st.markdown(
+            """
+            <div style="font-size: 1.1rem; font-weight: 600; color: #15181E; margin: 10px 0 10px 0;">
+                Indexed Files Registry
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        # Filters row
-        fc1, fc2, fc3, fc4 = st.columns([1.5, 1.2, 1.2, 1.5])
+        # Filter bar
+        fc1, fc2, fc3, fc4 = st.columns([1.8, 1.2, 1.2, 1.2])
+
         with fc1:
-            all_auth_folders = repo.get_authorized_folders()
-            f_choices = {"All Folders": None}
-            for f in all_auth_folders:
-                f_name = Path(f["folder_path"]).name or f["folder_path"]
-                f_choices[f"{f_name}"] = f["id"]
-            selected_f_label = st.selectbox("Filter Folder", list(f_choices.keys()), index=0)
-            sel_folder_id = f_choices[selected_f_label]
-
+            kw_filter = st.text_input("Filter by filename", placeholder="Type to filter...", label_visibility="collapsed")
         with fc2:
-            type_filter = st.selectbox("File Type", ["All", "DOCUMENT", "IMAGE"], index=0)
+            type_sel = st.selectbox("Format", ["All Formats", "Documents", "Images"], label_visibility="collapsed")
         with fc3:
-            tier_filter = st.selectbox("Privacy Tier", ["All", "FULL", "REDACTED", "METADATA_ONLY"], index=0)
+            status_sel = st.selectbox("Status", ["All Statuses", "INDEXED", "FAILED", "PENDING"], label_visibility="collapsed")
         with fc4:
-            search_name = st.text_input("Filter by filename", placeholder="Type filename keyword...")
+            sort_sel = st.selectbox("Sort", ["Modified (Newest)", "Name (A-Z)", "Size (Largest)"], label_visibility="collapsed")
 
-        f_type = None if type_filter == "All" else type_filter
-        f_tier = None if tier_filter == "All" else tier_filter
+        # Map filters
+        f_type = None
+        if type_sel == "Documents":
+            f_type = "DOCUMENT"
+        elif type_sel == "Images":
+            f_type = "IMAGE"
 
-        # Fetch files from repository
-        files = repo.get_all_indexed_files(limit=500, file_type=f_type, privacy_tier=f_tier)
+        f_status = None if status_sel == "All Statuses" else status_sel
 
-        if sel_folder_id is not None:
-            files = [f for f in files if f.get("folder_id") == sel_folder_id]
+        # Retrieve files
+        all_files = repo.get_all_indexed_files(limit=1000, file_type=f_type)
 
-        if search_name and search_name.strip():
-            kw = search_name.strip().lower()
-            files = [f for f in files if kw in f.get("file_name", "").lower() or kw in f.get("file_path", "").lower()]
+        if f_status:
+            all_files = [f for f in all_files if f.get("status") == f_status]
 
-        if not files:
-            st.info("No files matching the active filter criteria.")
+        if kw_filter and kw_filter.strip():
+            term = kw_filter.strip().lower()
+            all_files = [f for f in all_files if term in f.get("file_name", "").lower() or term in f.get("file_path", "").lower()]
+
+        # Sort
+        if "Name" in sort_sel:
+            all_files.sort(key=lambda x: x.get("file_name", "").lower())
+        elif "Size" in sort_sel:
+            all_files.sort(key=lambda x: x.get("file_size", 0), reverse=True)
         else:
-            st.markdown(
-                f"<div style='margin-bottom: 12px; font-family: \"JetBrains Mono\", Consolas, monospace; font-size: 0.78rem; color: #697386;'>DISPLAYING <strong>{len(files)}</strong> FILE RECORD(S)</div>",
-                unsafe_allow_html=True
-            )
+            all_files.sort(key=lambda x: x.get("modified_at") or "", reverse=True)
 
-            # Files Table
-            table_rows = []
-            for f in files:
-                table_rows.append({
-                    "File Name": f["file_name"],
-                    "Type": f["file_type"],
-                    "Extension": f["file_extension"],
-                    "Size": format_file_size(f["file_size"]),
-                    "Privacy Tier": f["privacy_tier"],
-                    "Status": f.get("status", "INDEXED"),
-                    "Modified": f["modified_at"],
-                })
+        st.markdown(
+            f"""
+            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.76rem; color: #697386; margin-bottom: 12px;">
+                DISPLAYING {len(all_files)} FILE(S)
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
+        if not all_files:
+            st.info("No files match the selected filter criteria.")
+        else:
+            for idx, file_rec in enumerate(all_files, 1):
+                f_id = file_rec["id"]
+                f_name = file_rec["file_name"]
+                f_path = file_rec["file_path"]
+                f_size = format_file_size(file_rec.get("file_size", 0))
+                f_mod = file_rec.get("modified_at", "Unknown")
+                f_stat = file_rec.get("status", "INDEXED")
 
-            # ── Deep File Inspector ──────────────────────────────────────────
-            st.markdown("### File Inspector & Representation")
-            file_options = {f"{f['id']}: {f['file_name']} [{f['privacy_tier']}]": f for f in files}
-            selected_key = st.selectbox("Select a file to inspect full metadata & privacy status:", list(file_options.keys()))
+                with st.container():
+                    col_item_info, col_item_btn1, col_item_btn2, col_item_btn3 = st.columns([3.5, 0.7, 1.0, 0.9])
 
-            if selected_key:
-                sel = file_options[selected_key]
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    st.markdown(f"**Filename:** `{sel['file_name']}`")
-                    st.markdown(f"**Canonical Path:** `{sel['file_path']}`")
-                    st.markdown(f"**File Hash (SHA-256):** `{sel['file_hash']}`")
-                with col_m2:
-                    st.markdown(f"**Privacy Tier:** {render_tier_badge(sel['privacy_tier'])}", unsafe_allow_html=True)
-                    st.markdown(f"**Indexing Status:** `{sel.get('status', 'INDEXED')}`")
-                    st.markdown(f"**Size:** {format_file_size(sel['file_size'])} | **Modified:** {sel['modified_at']}")
+                    with col_item_info:
+                        st.markdown(
+                            f"""
+                            <div style="font-size: 0.92rem; font-weight: 600; color: #15181E;">
+                                {f_name}
+                            </div>
+                            <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.72rem; color: #697386; word-break: break-all;">
+                                {f_path}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #4A5160; margin-top: 2px;">
+                                {f_size} &nbsp;•&nbsp; Modified {f_mod} &nbsp;•&nbsp; Status: <strong>{f_stat}</strong>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
 
-                # Action buttons
-                btn_c1, btn_c2, _ = st.columns([1, 1.3, 3])
-                with btn_c1:
-                    if st.button("👁️ Open File", key=f"lib_open_{sel['id']}"):
-                        ok, msg = open_file_in_os(sel["file_path"])
-                        if not ok:
-                            st.warning(msg)
-                with btn_c2:
-                    if st.button("📂 Reveal in Folder", key=f"lib_folder_{sel['id']}"):
-                        ok, msg = open_folder_in_os(sel["file_path"])
-                        if not ok:
-                            st.warning(msg)
+                    with col_item_btn1:
+                        if st.button("Open", key=f"lib_open_{f_id}_{idx}", use_container_width=True):
+                            ok, msg = open_file_in_os(f_path)
+                            if not ok:
+                                st.warning(msg)
 
-                # Content Preview (Respecting Privacy)
-                content = repo.get_file_content(sel["id"])
-                if content:
-                    st.markdown("**Indexed Representation Preview:**")
-                    if sel["privacy_tier"] == "METADATA_ONLY":
-                        st.info("🔒 **Content Hidden (METADATA_ONLY)**: Zero content text or vectors are stored in the index.")
-                    elif sel["privacy_tier"] == "REDACTED":
-                        st.warning("🛡️ **Sensitive PII Masked**: All sensitive identifiers are replaced with masked tokens.")
-                        st.code(content.get("redacted_preview", "") or "[No text preview]", language="text")
-                    else:
-                        st.code(content.get("searchable_text_preview", "") or "[No text preview]", language="text")
+                    with col_item_btn2:
+                        if st.button("Reveal in Explorer", key=f"lib_reveal_{f_id}_{idx}", use_container_width=True):
+                            ok, msg = open_folder_in_os(f_path)
+                            if not ok:
+                                st.warning(msg)
 
-                # Detected Entities Audit (Zero Raw PII)
-                entities = repo.get_detected_entities_for_file(sel["id"])
-                if entities:
-                    st.markdown("**Detected Sensitive Entities (De-identified Audit):**")
-                    ent_rows = []
-                    for e in entities:
-                        ent_rows.append({
-                            "Category": e.get("entity_type", "UNKNOWN"),
-                            "Masked Token": e.get("entity_token", "<REDACTED>"),
-                            "Confidence Score": f"{e.get('confidence', 1.0):.2f}",
-                        })
-                    st.dataframe(pd.DataFrame(ent_rows), use_container_width=True)
+                    with col_item_btn3:
+                        if st.button("Remove", key=f"lib_remove_{f_id}_{idx}", use_container_width=True):
+                            pipeline.remove_file(f_path)
+                            st.success(f"Removed '{f_name}' from index.")
+                            st.rerun()
+
+                    st.markdown("<hr style='border: none; border-top: 1px solid #E6E2D8; margin: 8px 0 10px 0;' />", unsafe_allow_html=True)
+
+
+# Backwards compatibility alias
+render_file_library_page = render_my_files_page
