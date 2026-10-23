@@ -71,23 +71,33 @@ pip install -r requirements.txt
   ```
 The browser will automatically open to `http://localhost:8501`.
 
-### 3.2 Run Diagnostics & Unit Tests
-Run all 31 regression and security tests:
+### 3.2 Run Diagnostics, Unit Tests & Verification
+Run the complete automated regression and security test suite (86 tests):
 ```powershell
 cd "SeekVault Prototype"
 python -m pytest tests/ -v
 ```
 
+Run 8-point end-to-end operational verification:
+```powershell
+python verify_e2e.py
+```
+
+Run retrieval quality & latency benchmark:
+```powershell
+python evaluation/benchmark.py
+```
+
 Run specific subsystem test suites:
 ```powershell
 # Ingestion pipeline tests
-python -m pytest tests/test_ingestion_pipeline.py -v
+python -m pytest tests/test_indexing_pipeline.py -v
 
 # Privacy, PII redaction and zero-leakage tests
-python -m pytest tests/test_privacy_processor.py -v
+python -m pytest tests/test_privacy_security.py -v
 
-# Vector healing and FAISS integrity
-python -m pytest tests/test_faiss_healing.py -v
+# Access verification & security boundaries
+python -m pytest tests/test_security_boundaries.py -v
 ```
 
 ### 3.3 Shutdown
