@@ -230,18 +230,20 @@ class Repository:
         modified_at: str,
         privacy_tier: str = "FULL",
         status: str = "PENDING",   # starts as PENDING; pipeline sets INDEXED or FAILED
-        visual_metadata: Optional[Dict[str, Any]] = None
+        visual_metadata: Optional[Dict[str, Any]] = None,
+        error_detail: Optional[str] = None
     ) -> int:
         norm_path = os.path.normpath(os.path.abspath(file_path))
         v_meta_json = json.dumps(visual_metadata) if visual_metadata else None
+        err_str = error_detail[:1000] if error_detail else None
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO files (
                     folder_id, file_path, file_name, file_extension,
                     file_size, file_hash, file_type, modified_at,
-                    privacy_tier, status, visual_metadata, indexed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    privacy_tier, status, visual_metadata, error_detail, indexed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(file_path) DO UPDATE SET
                     folder_id       = excluded.folder_id,
                     file_size       = excluded.file_size,
@@ -251,11 +253,12 @@ class Repository:
                     privacy_tier    = excluded.privacy_tier,
                     status          = excluded.status,
                     visual_metadata = excluded.visual_metadata,
+                    error_detail    = excluded.error_detail,
                     indexed_at      = CURRENT_TIMESTAMP
             """, (
                 folder_id, norm_path, file_name, file_extension,
                 file_size, file_hash, file_type, modified_at,
-                privacy_tier, status, v_meta_json
+                privacy_tier, status, v_meta_json, err_str
             ))
             cursor.execute("SELECT id FROM files WHERE file_path = ?", (norm_path,))
             row = cursor.fetchone()
@@ -289,6 +292,19 @@ class Repository:
                 "UPDATE files SET status = 'PENDING', error_detail = NULL WHERE status = 'FAILED'"
             )
             return cursor.rowcount
+
+    def get_failed_files(self) -> List[Dict[str, Any]]:
+        """Retrieve all file records with status='FAILED' for transparent error reporting."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT f.*, af.folder_path as folder_root
+                FROM files f
+                LEFT JOIN authorized_folders af ON f.folder_id = af.id
+                WHERE f.status = 'FAILED'
+                ORDER BY f.indexed_at DESC
+            """)
+            return [dict(row) for row in cursor.fetchall()]
 
 
 
@@ -464,17 +480,31 @@ class Repository:
     # -------------------------------------------------------------
     # Vector Mappings
     # -------------------------------------------------------------
+    def clear_vector_mappings(self, file_id: int, modality: Optional[str] = None) -> int:
+        """Clear recorded vector mappings for a file before re-embedding."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            if modality:
+                cursor.execute("DELETE FROM vector_mappings WHERE file_id = ? AND modality = ?", (file_id, modality))
+            else:
+                cursor.execute("DELETE FROM vector_mappings WHERE file_id = ?", (file_id,))
+            return cursor.rowcount
+
     def save_vector_mapping(self, file_id: int, modality: str, faiss_vector_id: int, vector_dim: int) -> int:
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                DELETE FROM vector_mappings WHERE file_id = ? AND modality = ?
-            """, (file_id, modality))
             cursor.execute("""
                 INSERT INTO vector_mappings (file_id, modality, faiss_vector_id, vector_dim)
                 VALUES (?, ?, ?, ?)
             """, (file_id, modality, faiss_vector_id, vector_dim))
             return cursor.lastrowid or 0
+
+    def get_vectors_for_file(self, file_id: int) -> List[Dict[str, Any]]:
+        """Retrieve all vector mappings for a specific file across all chunks."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM vector_mappings WHERE file_id = ? ORDER BY id ASC", (file_id,))
+            return [dict(r) for r in cursor.fetchall()]
 
     def get_file_by_vector_id(self, modality: str, faiss_vector_id: int) -> Optional[Dict[str, Any]]:
         with self._get_conn() as conn:

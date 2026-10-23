@@ -102,7 +102,24 @@ class TextExtractor:
     @staticmethod
     def extract_plain_text(file_path: Path) -> Dict[str, Any]:
         """Extract text from plain text files with UTF-8/fallback encoding."""
+        try:
+            if file_path.stat().st_size == 0:
+                return {
+                    "success": True,
+                    "text": "",
+                    "encoding": "utf-8",
+                    "error": None
+                }
+        except (PermissionError, OSError) as e:
+            return {
+                "success": False,
+                "text": "",
+                "encoding": None,
+                "error": f"File access error: {e}"
+            }
+
         encodings = ["utf-8", "utf-16", "latin-1", "cp1252"]
+        last_err = None
         for enc in encodings:
             try:
                 with open(file_path, "r", encoding=enc) as f:
@@ -113,14 +130,25 @@ class TextExtractor:
                     "encoding": enc,
                     "error": None
                 }
-            except (UnicodeDecodeError, Exception):
+            except UnicodeDecodeError as e:
+                last_err = str(e)
+                continue
+            except (PermissionError, OSError) as e:
+                return {
+                    "success": False,
+                    "text": "",
+                    "encoding": None,
+                    "error": f"File access error: {e}"
+                }
+            except Exception as e:
+                last_err = str(e)
                 continue
         
         return {
             "success": False,
             "text": "",
             "encoding": None,
-            "error": "Failed to decode with known encodings"
+            "error": f"Failed to decode with known encodings: {last_err or 'unknown error'}"
         }
 
     @classmethod

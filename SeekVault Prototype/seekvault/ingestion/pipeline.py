@@ -32,6 +32,7 @@ class IngestionPipeline:
         """
         Process a single file through the complete SeekVault pipeline:
         Authorization -> Extraction -> Privacy -> Classification -> Embedding -> Storage.
+        Handles corrupt, locked, empty, and unsupported files gracefully with per-file status.
         """
         file_path = Path(file_path_str)
         if not file_path.exists() or not file_path.is_file():
@@ -48,10 +49,28 @@ class IngestionPipeline:
             logger.debug(f"Skipping unsupported extension {ext}: {file_path}")
             return None
 
-        stat = file_path.stat()
-        file_size = stat.st_size
-        modified_at = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-        file_hash = DuplicateDetector.calculate_file_hash(file_path)
+        # Handle locked or inaccessible files before stat/hash
+        try:
+            stat = file_path.stat()
+            file_size = stat.st_size
+            modified_at = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            file_hash = DuplicateDetector.calculate_file_hash(file_path)
+        except (PermissionError, OSError) as e:
+            logger.warning(f"File locked or inaccessible: {file_path} ({e})")
+            file_id = self.repository.upsert_file(
+                folder_id=folder_id,
+                file_path=str(file_path),
+                file_name=file_path.name,
+                file_extension=ext,
+                file_size=0,
+                file_hash="",
+                file_type="IMAGE" if ext in IMAGE_EXTENSIONS else "DOCUMENT",
+                modified_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                status="FAILED",
+                error_detail=f"Inaccessible or locked file: {e}"
+            )
+            return self.repository.get_file_by_id(file_id)
+
         is_image = ext in IMAGE_EXTENSIONS
         file_type = "IMAGE" if is_image else "DOCUMENT"
 
@@ -61,9 +80,9 @@ class IngestionPipeline:
             tier = existing.get("privacy_tier")
             file_id = existing["id"]
             # Integrity check: verify that vectors actually exist in FAISS index
-            # (unless it's METADATA_ONLY where no vectors should exist)
+            # (unless it's METADATA_ONLY or 0-byte file where no vectors should exist)
             vector_missing = False
-            if tier != TIER_METADATA_ONLY:
+            if tier != TIER_METADATA_ONLY and existing.get("file_size", 0) > 0:
                 if is_image:
                     vector_missing = not self.search_engine.image_index.has_file(file_id)
                 else:
@@ -80,11 +99,34 @@ class IngestionPipeline:
         # 2. Extraction & Privacy Processing
         if not is_image:
             extract_res = TextExtractor.extract(file_path)
+            
+            # If extraction failed (corrupt file, unreadable encoding, syntax error)
+            if not extract_res.get("success", False):
+                err_msg = extract_res.get("error") or "Unknown extraction failure"
+                logger.warning(f"Extraction failed for {file_path.name}: {err_msg}")
+                # Clean up any previous vectors if file became corrupted
+                if existing:
+                    self.search_engine.text_index.remove_file(existing["id"])
+                file_id = self.repository.upsert_file(
+                    folder_id=folder_id,
+                    file_path=str(file_path),
+                    file_name=file_path.name,
+                    file_extension=ext,
+                    file_size=file_size,
+                    file_hash=file_hash,
+                    file_type=file_type,
+                    modified_at=modified_at,
+                    privacy_tier=TIER_FULL,
+                    status="FAILED",
+                    error_detail=f"Extraction failed: {err_msg}"
+                )
+                return self.repository.get_file_by_id(file_id)
+
             raw_text = extract_res.get("text", "")
             raw_chars = len(raw_text)
 
             # Privacy Analysis
-            detected_entities = PrivacyAnalyzer.analyze(raw_text)
+            detected_entities = PrivacyAnalyzer.analyze(raw_text) if raw_text else []
             privacy_tier = PrivacyClassifier.classify(file_path.name, raw_text, detected_entities)
 
             # Sanitization (original file is NEVER modified)
@@ -106,7 +148,8 @@ class IngestionPipeline:
                 file_type=file_type,
                 modified_at=modified_at,
                 privacy_tier=privacy_tier,
-                status="INDEXED"
+                status="INDEXED",
+                error_detail=None
             )
 
             # Save Content & Entities
@@ -117,13 +160,15 @@ class IngestionPipeline:
                 redacted_preview=sanitized_text[:2000],
                 has_ocr=False
             )
-            self.repository.save_detected_entities(file_id, detected_entities)
+            if detected_entities:
+                self.repository.save_detected_entities(file_id, detected_entities)
 
             # 3. Vector Embedding with sliding-window chunking
+            # Clean up any existing vector mappings for this file to prevent duplicates
+            self.search_engine.text_index.remove_file(file_id)
+            self.repository.clear_vector_mappings(file_id, "TEXT")
             if privacy_tier != TIER_METADATA_ONLY and sanitized_text.strip():
                 embedder = EmbeddingManager.get_text_embedder()
-                # Clean up any existing vector mappings for this file to prevent duplicates
-                self.search_engine.text_index.remove_file(file_id)
                 chunks = TextExtractor.chunk_text(sanitized_text, chunk_size=250, overlap=50)
                 for chunk in chunks:
                     if chunk.strip():
@@ -134,6 +179,26 @@ class IngestionPipeline:
         else:
             # Image Processing
             meta_res = ImageExtractor.extract_metadata(file_path)
+            if not meta_res.get("success", False):
+                err_msg = meta_res.get("error") or "Failed to read image metadata"
+                logger.warning(f"Image extraction failed for {file_path.name}: {err_msg}")
+                if existing:
+                    self.search_engine.image_index.remove_file(existing["id"])
+                file_id = self.repository.upsert_file(
+                    folder_id=folder_id,
+                    file_path=str(file_path),
+                    file_name=file_path.name,
+                    file_extension=ext,
+                    file_size=file_size,
+                    file_hash=file_hash,
+                    file_type=file_type,
+                    modified_at=modified_at,
+                    privacy_tier=TIER_FULL,
+                    status="FAILED",
+                    error_detail=f"Image error: {err_msg}"
+                )
+                return self.repository.get_file_by_id(file_id)
+
             visual_meta = {
                 "width": meta_res.get("width"),
                 "height": meta_res.get("height"),
@@ -143,10 +208,14 @@ class IngestionPipeline:
                 "exif": meta_res.get("exif", {})
             }
 
-            # Optional OCR on image
-            ocr_res = OCRExtractor.extract_text(file_path)
-            ocr_text = ocr_res.get("text", "")
-            has_ocr = bool(ocr_text)
+            # Optional OCR on image (only if enabled and available)
+            ocr_text = ""
+            has_ocr = False
+            from seekvault import config
+            if getattr(config, "ENABLE_OCR", False) and OCRExtractor.is_available():
+                ocr_res = OCRExtractor.extract_text(file_path)
+                ocr_text = ocr_res.get("text", "")
+                has_ocr = bool(ocr_text)
 
             detected_entities = []
             if ocr_text:
@@ -166,7 +235,8 @@ class IngestionPipeline:
                 modified_at=modified_at,
                 privacy_tier=privacy_tier,
                 status="INDEXED",
-                visual_metadata=visual_meta
+                visual_metadata=visual_meta,
+                error_detail=None
             )
 
             self.repository.save_file_content(
@@ -180,13 +250,16 @@ class IngestionPipeline:
                 self.repository.save_detected_entities(file_id, detected_entities)
 
             # Multimodal Vision Vector Embedding
+            self.search_engine.image_index.remove_file(file_id)
+            self.repository.clear_vector_mappings(file_id, "IMAGE")
             if privacy_tier != TIER_METADATA_ONLY:
-                img_embedder = EmbeddingManager.get_image_embedder()
-                # Clean up any existing vector mappings for this file to prevent duplicates
-                self.search_engine.image_index.remove_file(file_id)
-                img_vec = img_embedder.embed_image(file_path)
-                faiss_id = self.search_engine.image_index.add_vector(file_id, img_vec)
-                self.repository.save_vector_mapping(file_id, "IMAGE", faiss_id, IMAGE_EMBEDDING_DIM)
+                try:
+                    img_embedder = EmbeddingManager.get_image_embedder()
+                    img_vec = img_embedder.embed_image(file_path)
+                    faiss_id = self.search_engine.image_index.add_vector(file_id, img_vec)
+                    self.repository.save_vector_mapping(file_id, "IMAGE", faiss_id, IMAGE_EMBEDDING_DIM)
+                except Exception as e:
+                    logger.warning(f"Image embedding failed for {file_path.name}: {e}")
 
         return self.repository.get_file_by_id(file_id)
 
@@ -206,15 +279,42 @@ class IngestionPipeline:
         """Scan and ingest all supported files within an authorized folder."""
         count = 0
         norm_dir = Path(folder_path)
-        if not norm_dir.exists():
+        if not norm_dir.exists() or not norm_dir.is_dir():
+            logger.warning(f"scan_folder: Directory does not exist: {folder_path}")
+            return 0
+
+        # Safety check: folder must be authorized
+        if not self.repository.is_path_authorized(str(norm_dir)):
+            logger.warning(f"scan_folder: Path is not authorized: {folder_path}")
             return 0
 
         pattern = "**/*" if is_recursive else "*"
-        for p in norm_dir.glob(pattern):
-            if p.is_file() and p.suffix.lower() in (DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS):
+        try:
+            candidates = list(norm_dir.glob(pattern))
+        except Exception as e:
+            logger.error(f"Error enumerating directory {folder_path}: {e}")
+            return 0
+
+        for p in candidates:
+            # Skip non-files
+            if not p.is_file():
+                continue
+            
+            # Skip temporary/lock files
+            fname = p.name
+            if (
+                fname.startswith("~$")
+                or fname.startswith(".~lock")
+                or fname.endswith(".tmp")
+                or fname.endswith(".crdownload")
+                or fname.endswith(".part")
+            ):
+                continue
+
+            if p.suffix.lower() in (DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS):
                 try:
                     res = self.process_file(str(p))
-                    if res:
+                    if res and res.get("status") == "INDEXED":
                         count += 1
                 except Exception as e:
                     logger.error(f"Error ingesting file {p}: {e}")

@@ -29,6 +29,9 @@ DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALL_SUPPORTED_EXTENSIONS = DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS
 
+# OCR configuration (default disabled; opt-in via env var)
+ENABLE_OCR = os.environ.get("SEEKVAULT_ENABLE_OCR", "0").lower() in ("1", "true", "yes")
+
 # Machine Learning Models
 TEXT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 TEXT_EMBEDDING_DIM = 384
