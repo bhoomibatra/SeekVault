@@ -62,14 +62,14 @@ def render_search_page(search_engine: SearchEngine):
         """
         <div style="margin-bottom: 20px;">
             <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <h1 style="font-size: 1.95rem; font-weight: 700; letter-spacing: -0.6px; margin-bottom: 4px; color: #15181E;">
+                <h1 style="font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; color: #15181E;">
                     Search Documents & Media
                 </h1>
-                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #828A98;">
-                    Vault Scope: Local Zero-Trust
+                <span style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.75rem; color: #697386;">
+                    Scope: Local Zero-Trust
                 </span>
             </div>
-            <p style="font-size: 0.90rem; color: #828A98; margin-top: 0; margin-bottom: 12px;">
+            <p style="font-size: 0.90rem; color: #4A5160; margin-top: 0; margin-bottom: 12px; line-height: 1.5;">
                 Search your authorized local files by conceptual meaning, natural language passage, or exact terms.
             </p>
         </div>
@@ -83,11 +83,11 @@ def render_search_page(search_engine: SearchEngine):
     if stats["total_files"] == 0:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 10px; padding: 36px 24px; text-align: center; margin-top: 14px;">
-                <div style="font-size: 1.1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
+            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 36px 24px; text-align: center; margin-top: 14px;">
+                <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
                     No files are currently indexed in your local vault
                 </div>
-                <p style="font-size: 0.88rem; color: #828A98; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
+                <p style="font-size: 0.88rem; color: #4A5160; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
                     SeekVault only indexes folders you explicitly authorize. To begin searching, open the <strong>File Library</strong> in the navigation and authorize a local folder.
                 </p>
             </div>
@@ -241,7 +241,7 @@ def render_search_page(search_engine: SearchEngine):
         # Stream Metrics Header
         st.markdown(
             f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #828A98;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.78rem; color: #697386;">
                 <div>
                     <span>FOUND <strong style="color: #15181E;">{len(results)}</strong> RELEVANT FILE(S)</span>
                     <span> • </span>
@@ -257,11 +257,11 @@ def render_search_page(search_engine: SearchEngine):
         if not results:
             st.markdown(
                 f"""
-                <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 10px; padding: 32px 20px; text-align: center; margin-top: 10px;">
+                <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 32px 20px; text-align: center; margin-top: 10px;">
                     <div style="font-size: 1rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
                         No matching documents found for &ldquo;{q_str}&rdquo;
                     </div>
-                    <p style="font-size: 0.85rem; color: #828A98; max-width: 440px; margin: 0 auto; line-height: 1.5;">
+                    <p style="font-size: 0.85rem; color: #4A5160; max-width: 440px; margin: 0 auto; line-height: 1.5;">
                         Try using broader concepts, lowering the threshold slider, or switching to <strong>Hybrid (RRF)</strong> mode to catch exact keywords.
                     </p>
                 </div>
@@ -357,15 +357,15 @@ def render_search_page(search_engine: SearchEngine):
 
     else:
         # ─────────────────────────────────────────────────────────────────────
-        # 6. CALM PROMPT STARTER (EMPTY QUERY STATE)
+        # 6. PROMPT STARTER (EMPTY QUERY STATE)
         # ─────────────────────────────────────────────────────────────────────
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 12px; padding: 32px 24px; text-align: center; margin-top: 16px;">
+            <div style="background: #FFFFFF; border: 1px dashed #D1CBC0; border-radius: 8px; padding: 32px 24px; text-align: center; margin-top: 16px;">
                 <div style="font-size: 1.05rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">
                     Search your local vault by conceptual meaning
                 </div>
-                <p style="font-size: 0.86rem; color: #828A98; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
+                <p style="font-size: 0.86rem; color: #4A5160; max-width: 480px; margin: 0 auto 16px auto; line-height: 1.5;">
                     SeekVault indexes full documents and images locally. Click any query starter below to test retrieval against your indexed files:
                 </p>
             </div>
@@ -377,15 +377,15 @@ def render_search_page(search_engine: SearchEngine):
 
         sc1, sc2, sc3 = st.columns(3)
         with sc1:
-            if st.button("📄 Candidate Elimination Algorithm", key="sample_q1", use_container_width=True):
+            if st.button("Candidate Elimination Algorithm", key="sample_q1", use_container_width=True):
                 st.session_state.search_query_preset = "notes about candidate elimination algorithm"
                 st.rerun()
         with sc2:
-            if st.button("📄 Database Normalization BCNF", key="sample_q2", use_container_width=True):
+            if st.button("Database Normalization BCNF", key="sample_q2", use_container_width=True):
                 st.session_state.search_query_preset = "database relational normalization forms BCNF"
                 st.rerun()
         with sc3:
-            if st.button("🖼️ Red Car Parked Outside", key="sample_q3", use_container_width=True):
+            if st.button("Red Car Parked Outside", key="sample_q3", use_container_width=True):
                 st.session_state.search_query_preset = "red car parked near a building"
                 st.rerun()
 

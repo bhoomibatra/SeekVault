@@ -58,15 +58,15 @@ st.sidebar.markdown(
     """
     <div style="padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid #E6E2D8;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            <span style="font-size: 1.25rem; font-weight: 700; letter-spacing: -0.4px; color: #15181E; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
                 SeekVault
             </span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; background: linear-gradient(135deg, #EFF6FF, #F5F3FF); color: #4F46E5; border: 1px solid #C7D2FE; padding: 2px 7px; border-radius: 12px;">
+            <span style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; background: #EFF4FE; color: #1D4ED8; border: 1px solid #BFDBFE; padding: 2px 6px; border-radius: 4px;">
                 LOCAL v1.0
             </span>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #828A98; margin-top: 4px;">
-            ZERO-CLOUD PRIVATE INTELLIGENCE
+        <div style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.68rem; color: #697386; margin-top: 4px;">
+            ZERO-CLOUD PRIVATE SEARCH
         </div>
     </div>
     """,
@@ -96,8 +96,8 @@ if watcher_status["is_running"]:
     watch_count = watcher_status['watched_folder_count']
     st.sidebar.markdown(
         f"""
-        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #4A5160;">
-            <span style="color: #10B981; font-weight: 700;">●</span> Watchdog Active ({watch_count} folders)
+        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.72rem; color: #4A5160;">
+            <span style="color: #166534; font-weight: 700;">●</span> Watchdog Active ({watch_count} folders)
         </div>
         """,
         unsafe_allow_html=True
@@ -105,8 +105,8 @@ if watcher_status["is_running"]:
 else:
     st.sidebar.markdown(
         """
-        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #828A98;">
-            <span style="color: #F59E0B; font-weight: 700;">●</span> Watchdog Idle
+        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.72rem; color: #697386;">
+            <span style="color: #92400E; font-weight: 700;">●</span> Watchdog Idle
         </div>
         """,
         unsafe_allow_html=True

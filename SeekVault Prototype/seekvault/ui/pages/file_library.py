@@ -25,14 +25,14 @@ def render_file_library_page(
         """
         <div style="margin-bottom: 20px;">
             <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <h1 style="font-size: 1.95rem; font-weight: 700; letter-spacing: -0.6px; margin-bottom: 4px; color: #15181E;">
+                <h1 style="font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; color: #15181E;">
                     File Library & Storage
                 </h1>
-                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #828A98;">
+                <span style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.75rem; color: #697386;">
                     Scope: Authorized Directories & Registry
                 </span>
             </div>
-            <p style="font-size: 0.90rem; color: #828A98; margin-top: 0; margin-bottom: 12px;">
+            <p style="font-size: 0.90rem; color: #4A5160; margin-top: 0; margin-bottom: 12px; line-height: 1.5;">
                 Manage authorized local directories and inspect indexed file representations with verifiable privacy boundaries.
             </p>
         </div>
@@ -97,7 +97,7 @@ def render_file_library_page(
             st.markdown("---")
 
         # ── Add New Folder ───────────────────────────────────────────────────
-        with st.expander("➕ Authorize New Directory", expanded=False):
+        with st.expander("Authorize New Directory", expanded=False):
             with st.form("add_auth_folder_form", clear_on_submit=True):
                 folder_input = st.text_input(
                     "Directory Path",
@@ -108,7 +108,7 @@ def render_file_library_page(
                 with col_rec:
                     is_rec = st.checkbox("Include sub-folders (recursive indexing)", value=True)
                 with col_sub:
-                    submitted = st.form_submit_button("➕ Authorize & Scan", type="primary", use_container_width=True)
+                    submitted = st.form_submit_button("Authorize & Scan", type="primary", use_container_width=True)
 
                 if submitted:
                     raw = folder_input.strip()
@@ -173,7 +173,7 @@ def render_file_library_page(
                             status_summary += f" | <span style='color:#D97706;'>{counts['pending']} pending</span>"
 
                         st.markdown(
-                            f"<span style='font-size:0.80rem; font-family: \"JetBrains Mono\", monospace; color:#828A98;'>{rec_label} &nbsp;•&nbsp; {status_summary}</span>",
+                            f"<span style='font-size:0.80rem; font-family: \"JetBrains Mono\", Consolas, monospace; color:#697386;'>{rec_label} &nbsp;•&nbsp; {status_summary}</span>",
                             unsafe_allow_html=True
                         )
 
@@ -239,7 +239,7 @@ def render_file_library_page(
             st.info("No files matching the active filter criteria.")
         else:
             st.markdown(
-                f"<div style='margin-bottom: 12px; font-family: \"JetBrains Mono\", monospace; font-size: 0.78rem; color: #828A98;'>DISPLAYING <strong>{len(files)}</strong> FILE RECORD(S)</div>",
+                f"<div style='margin-bottom: 12px; font-family: \"JetBrains Mono\", Consolas, monospace; font-size: 0.78rem; color: #697386;'>DISPLAYING <strong>{len(files)}</strong> FILE RECORD(S)</div>",
                 unsafe_allow_html=True
             )
 

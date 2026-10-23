@@ -19,10 +19,10 @@ def render_duplicates_versions_page(repo: Repository):
             <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1D4ED8; margin-bottom: 4px;">
                 Document Deduplication & Lineage
             </div>
-            <h1 style="font-family: 'Newsreader', Georgia, serif; font-size: 2.2rem; font-weight: 600; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
+            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
                 Duplicates & Version History
             </h1>
-            <p style="font-size: 0.95rem; color: #5A6270; margin: 0; line-height: 1.5;">
+            <p style="font-size: 0.95rem; color: #4A5160; margin: 0; line-height: 1.5;">
                 Content-hash exact duplicate clustering and heuristic semantic version lineage suggestions.
             </p>
         </div>
@@ -38,7 +38,7 @@ def render_duplicates_versions_page(repo: Repository):
     with tab_dup:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-left: 4px solid #1D4ED8; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.88rem; font-weight: 700; color: #1E40AF; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
                     Strict Non-Destructive Policy
                 </div>
@@ -56,9 +56,9 @@ def render_duplicates_versions_page(repo: Repository):
         if not dup_groups:
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 24px; text-align: center; color: #5A6270; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 24px; text-align: center; color: #4A5160; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                     <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">No Duplicate Files Detected</div>
-                    <div style="font-size: 0.85rem; color: #737373;">
+                    <div style="font-size: 0.85rem; color: #697386;">
                         All files across authorized directories have unique SHA-256 content hashes.
                     </div>
                 </div>
@@ -134,9 +134,9 @@ def render_duplicates_versions_page(repo: Repository):
         if not version_groups:
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 24px; text-align: center; color: #5A6270; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 24px; text-align: center; color: #4A5160; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                     <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">No Version Chains Detected</div>
-                    <div style="font-size: 0.85rem; color: #737373;">
+                    <div style="font-size: 0.85rem; color: #697386;">
                         Ingest multiple revisions of a document (e.g., <code>Draft_v1.docx</code> and <code>Draft_v2.docx</code>) to view them grouped here.
                     </div>
                 </div>

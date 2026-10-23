@@ -19,10 +19,10 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
             <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1D4ED8; margin-bottom: 4px;">
                 Infrastructure & Lifecycle Configuration
             </div>
-            <h1 style="font-family: 'Newsreader', Georgia, serif; font-size: 2.2rem; font-weight: 600; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
+            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
                 System Settings & Maintenance
             </h1>
-            <p style="font-size: 0.95rem; color: #5A6270; margin: 0; line-height: 1.5;">
+            <p style="font-size: 0.95rem; color: #4A5160; margin: 0; line-height: 1.5;">
                 Inspect on-device neural models, storage architecture, backup/restore archives, and safe index synchronization.
             </p>
         </div>
@@ -35,7 +35,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Local Neural Embedding Models
         </div>
         """,
@@ -56,7 +56,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     with c1:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8;">
                         TEXT SEMANTIC EMBEDDER
@@ -69,7 +69,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
                     <code>{model_diag['text_model']['name']}</code>
                 </div>
-                <div style="font-size: 0.82rem; color: #5A6270; line-height: 1.5;">
+                <div style="font-size: 0.82rem; color: #4A5160; line-height: 1.5;">
                     <div><strong>Dimension:</strong> {model_diag['text_model']['dimension']}-d dense vector (float32)</div>
                     <div><strong>Engine:</strong> Local CPU via Sentence-Transformers</div>
                     <div><strong>Quantization / Precision:</strong> FP32 Normalized</div>
@@ -82,7 +82,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     with c2:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8;">
                         CROSS-MODAL VISION EMBEDDER
@@ -95,7 +95,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 8px;">
                     <code>{model_diag['image_model']['name']}</code>
                 </div>
-                <div style="font-size: 0.82rem; color: #5A6270; line-height: 1.5;">
+                <div style="font-size: 0.82rem; color: #4A5160; line-height: 1.5;">
                     <div><strong>Dimension:</strong> {model_diag['image_model']['dimension']}-d dense vector (float32)</div>
                     <div><strong>Engine:</strong> Local CPU via OpenAI CLIP Vision Transformer</div>
                     <div><strong>Quantization / Precision:</strong> FP32 Normalized</div>
@@ -114,7 +114,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Optical Character Recognition Subsystem
         </div>
         """,
@@ -136,9 +136,9 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     else:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-left: 4px solid #64748B; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-left: 4px solid #64748B; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">OCR Subsystem in Graceful Fallback</div>
-                <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                     Tesseract binary not detected on PATH. Visual semantic search operates via CLIP zero-shot multimodal embeddings.
                 </div>
             </div>
@@ -153,7 +153,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Local Storage Telemetry
         </div>
         """,
@@ -163,7 +163,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     with s1:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     DATABASE PATH
                 </div>
@@ -177,7 +177,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     with s2:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     FAISS INDEX DIR
                 </div>
@@ -191,7 +191,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     with s3:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     VECTOR EMBEDDINGS
                 </div>
@@ -211,14 +211,14 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Backup & Vault Snapshot Archives
         </div>
         """,
         unsafe_allow_html=True
     )
     st.markdown(
-        "<p style='font-size: 0.88rem; color: #5A6270; margin-top: 0;'>Create lightweight portable snapshots of your SeekVault database and search vector indices. Snapshots do not alter or move your source files.</p>",
+        "<p style='font-size: 0.88rem; color: #4A5160; margin-top: 0;'>Create lightweight portable snapshots of your SeekVault database and search vector indices. Snapshots do not alter or move your source files.</p>",
         unsafe_allow_html=True
     )
 
@@ -258,7 +258,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Maintenance & Safe Index Reset
         </div>
         """,
@@ -270,7 +270,7 @@ def render_settings_page(repo: Repository, search_engine: SearchEngine):
 
     if not st.session_state.pending_index_reset:
         st.markdown(
-            "<p style='font-size: 0.88rem; color: #5A6270; margin-top: 0;'>Clear all FAISS vector indices and synchronize database statuses back to <code>PENDING</code> for a fresh re-index.</p>",
+            "<p style='font-size: 0.88rem; color: #4A5160; margin-top: 0;'>Clear all FAISS vector indices and synchronize database statuses back to <code>PENDING</code> for a fresh re-index.</p>",
             unsafe_allow_html=True
         )
         if st.button("Reset Vector Search Indices", type="secondary"):

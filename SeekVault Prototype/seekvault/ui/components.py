@@ -49,31 +49,31 @@ def open_folder_in_os(file_path: str) -> Tuple[bool, str]:
 
 
 def render_tier_badge(tier: str) -> str:
-    """Return colored HTML badge for privacy tiers."""
-    colors = {
-        "FULL": "#10B981",          # Emerald green
-        "REDACTED": "#F59E0B",      # Amber / Orange
-        "METADATA_ONLY": "#EF4444", # Red
+    """Return colored HTML badge for privacy tiers with WCAG compliant text contrast."""
+    badge_config = {
+        "FULL": {"border": "#10B981", "bg": "#ECFDF5", "text": "#166534"},
+        "REDACTED": {"border": "#F59E0B", "bg": "#FFFBEB", "text": "#92400E"},
+        "METADATA_ONLY": {"border": "#EF4444", "bg": "#FEF2F2", "text": "#B42318"},
     }
-    color = colors.get(tier, "#6B7280")
-    return f"""<span style="background-color: {color}20; color: {color}; border: 1px solid {color}50; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.80rem;">{tier}</span>"""
+    cfg = badge_config.get(tier, {"border": "#697386", "bg": "#F0EEE8", "text": "#15181E"})
+    return f"""<span style="background-color: {cfg['bg']}; color: {cfg['text']}; border: 1px solid {cfg['border']}; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.78rem; font-family: 'JetBrains Mono', Consolas, monospace;">{tier}</span>"""
 
 def render_relevance_badge(label: str) -> str:
-    """Return colored HTML badge for search retrieval attribution."""
+    """Return colored HTML badge for search retrieval attribution with readable dark text."""
     colors = {
-        "Both": ("#6366F1", "Hybrid (Both)"),      # Electric Indigo
-        "Keyword": ("#06B6D4", "Keyword Match"),   # Cyan
-        "Semantic": ("#8B5CF6", "Semantic Match"),  # Purple
+        "Both": ("#6366F1", "#EEF2FF", "#3730A3", "Hybrid (Both)"),      # Indigo border, light bg, dark indigo text
+        "Keyword": ("#06B6D4", "#ECFEFF", "#155E75", "Keyword Match"),   # Cyan border, light bg, dark cyan text
+        "Semantic": ("#8B5CF6", "#F5F3FF", "#5B21B6", "Semantic Match"), # Purple border, light bg, dark purple text
     }
-    color, text = colors.get(label, ("#6B7280", label or "Match"))
-    return f"""<span style="background-color: {color}20; color: {color}; border: 1px solid {color}50; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.80rem;">{text}</span>"""
+    border, bg, text_color, text = colors.get(label, ("#697386", "#F0EEE8", "#15181E", label or "Match"))
+    return f"""<span style="background-color: {bg}; color: {text_color}; border: 1px solid {border}; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.78rem;">{text}</span>"""
 
 def render_score_bar(score: float) -> str:
     """Render a visual similarity percentage bar."""
     pct = max(0, min(100, int(score * 100)))
-    color = "#6366F1" if pct > 65 else ("#F59E0B" if pct > 45 else "#9CA3AF")
+    color = "#1D4ED8" if pct > 65 else ("#92400E" if pct > 45 else "#697386")
     return f"""
-    <div style="background-color: #24324D; border-radius: 4px; height: 6px; width: 100%; margin-top: 4px;">
+    <div style="background-color: #E6E2D8; border-radius: 4px; height: 6px; width: 100%; margin-top: 4px;">
         <div style="background-color: {color}; width: {pct}%; height: 100%; border-radius: 4px;"></div>
     </div>
     """
@@ -88,221 +88,343 @@ def format_file_size(bytes_size: int) -> str:
         return f"{bytes_size / (1024 * 1024):.2f} MB"
 
 def inject_design_system() -> None:
-    """Inject custom colorful and modern 'Private Search Instrument' design tokens & styles."""
+    """Inject SeekVault Light Theme Design System ensuring WCAG AA compliant contrast."""
     custom_css = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+        /* ─── CSS Variables ─── */
         :root {
-            /* Warm Parchment & Deep Ink Palette with Playful Vibrant Accents */
-            --canvas-bg: #F7F6F2;
-            --canvas-subtle: #F0EEE8;
-            --surface-card: #FFFFFF;
-            --surface-hover: #FCFBF9;
-            --border-hairline: #E6E2D8;
-            --border-strong: #D1CBC0;
-            --border-focus: #4F46E5;
-            --ink-primary: #15181E;
-            --ink-secondary: #4A5160;
-            --ink-muted: #828A98;
-            --cobalt-primary: #1D4ED8;
-            --cobalt-tint: #EFF4FE;
-            --cobalt-border: #BFDBFE;
-
-            /* Legacy token aliases for backward compatibility */
-            --bg-base: #F7F6F2;
-            --bg-surface: #F0EEE8;
+            --bg-main: #F7F6F2;
+            --bg-secondary: #F0EEE8;
             --bg-card: #FFFFFF;
-            --bg-card-hover: #FCFBF9;
-            --border-subtle: #E6E2D8;
             --text-primary: #15181E;
             --text-secondary: #4A5160;
-            --text-muted: #828A98;
-            --accent: #1D4ED8;
+            --text-muted: #697386;
+            --border-subtle: #E6E2D8;
+            --border-strong: #D1CBC0;
+            --accent-primary: #1D4ED8;
+            --accent-hover: #1E40AF;
+            --color-success: #166534;
+            --color-warning: #92400E;
+            --color-error: #B42318;
         }
 
-        /* Streamlit Global Overrides */
-        .stApp {
-            background-color: var(--canvas-bg) !important;
-            color: var(--ink-primary) !important;
-            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+        /* ─── Global Base Reset & Typography ─── */
+        html, body, .stApp {
+            background-color: #F7F6F2 !important;
+            color: #15181E !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+            font-weight: 400 !important;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Chromatic Fun Typography for Main Headings */
-        h1 {
-            font-family: 'Newsreader', Georgia, serif !important;
-            background: linear-gradient(135deg, #1E40AF 0%, #4F46E5 35%, #7C3AED 70%, #DB2777 100%) !important;
-            -webkit-background-clip: text !important;
-            -webkit-text-fill-color: transparent !important;
-            font-weight: 700 !important;
-            letter-spacing: -0.02em !important;
+        /* Enforce dark text across all generic Streamlit layout containers */
+        .stApp p, .stApp span, .stApp label, .stApp li, .stApp td, .stApp th {
+            color: #15181E;
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
         }
 
-        /* Subheaders with refined dark slate & colorful diamond accent */
-        h2, h3 {
-            font-family: 'Newsreader', Georgia, serif !important;
-            color: #1E293B !important;
-            font-weight: 600 !important;
+        /* ─── Headings: 600-700 weight, solid #15181E ─── */
+        h1, h2, h3, h4, h5, h6,
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
+            color: #15181E !important;
+            -webkit-text-fill-color: #15181E !important;
+            letter-spacing: -0.015em !important;
         }
 
-        /* Metric Numbers with Vibrant Jewel Gradient */
-        [data-testid="stMetricValue"] {
-            background: linear-gradient(135deg, #1D4ED8 0%, #6366F1 50%, #EC4899 100%) !important;
-            -webkit-background-clip: text !important;
-            -webkit-text-fill-color: transparent !important;
-            font-weight: 800 !important;
+        h1, .stMarkdown h1 {
             font-size: 1.85rem !important;
-        }
-
-        /* Eyebrow Chips */
-        .eyebrow-chip {
-            display: inline-block;
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            background: linear-gradient(90deg, #2563EB, #7C3AED);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 4px;
-        }
-
-        /* Sidebar Styling */
-        [data-testid="stSidebar"] {
-            background-color: #F3F0EA !important;
-            border-right: 1px solid var(--border-hairline) !important;
-        }
-
-        /* Primary Action Buttons with Gradient Glow */
-        button[kind="primary"] {
-            background: linear-gradient(135deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%) !important;
-            border: none !important;
-            color: #FFFFFF !important;
-            font-weight: 600 !important;
-            border-radius: 8px !important;
-            box-shadow: 0 3px 12px rgba(79, 70, 229, 0.25) !important;
-            transition: all 0.2s ease !important;
-        }
-        button[kind="primary"]:hover {
-            transform: translateY(-1px) !important;
-            box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35) !important;
-        }
-
-        /* Active Navigation Tabs */
-        button[data-baseweb="tab"][aria-selected="true"] {
-            background: transparent !important;
-            color: #4F46E5 !important;
-            border-bottom: 2px solid #4F46E5 !important;
             font-weight: 700 !important;
+            line-height: 1.25 !important;
+            margin-bottom: 0.35rem !important;
         }
 
-        /* Hero Document Card ("The Private Search Instrument") */
-        .instrument-card {
-            background: var(--surface-card);
-            border: 1px solid var(--border-hairline);
-            border-radius: 10px;
-            padding: 18px 22px;
-            margin-bottom: 14px;
-            box-shadow: 0 1px 3px rgba(22, 25, 30, 0.03);
-            transition: all 0.18s ease-in-out;
+        h2, .stMarkdown h2 {
+            font-size: 1.30rem !important;
+            font-weight: 600 !important;
+            line-height: 1.3 !important;
+            margin-top: 1.2rem !important;
+            margin-bottom: 0.4rem !important;
         }
+
+        h3, .stMarkdown h3 {
+            font-size: 1.08rem !important;
+            font-weight: 600 !important;
+            line-height: 1.35 !important;
+            margin-top: 1rem !important;
+            margin-bottom: 0.35rem !important;
+        }
+
+        /* ─── Monospace Code and Technical Metadata ─── */
+        code, pre, .font-mono, [data-testid="stCodeBlock"], [data-testid="stCode"] {
+            font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+        }
+
+        code {
+            background-color: #F0EEE8 !important;
+            color: #15181E !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 4px !important;
+            padding: 2px 6px !important;
+            font-size: 0.85em !important;
+        }
+
+        /* ─── Streamlit Sidebar Styling ─── */
+        [data-testid="stSidebar"] {
+            background-color: #F0EEE8 !important;
+            border-right: 1px solid #E6E2D8 !important;
+        }
+
+        [data-testid="stSidebar"] p, 
+        [data-testid="stSidebar"] span, 
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] div {
+            color: #15181E;
+        }
+
+        /* Sidebar Navigation Radio Options */
+        [data-testid="stSidebar"] [data-baseweb="radio"] {
+            padding: 4px 0 !important;
+        }
+
+        [data-testid="stSidebar"] [data-baseweb="radio"] label {
+            font-size: 0.90rem !important;
+            font-weight: 500 !important;
+            color: #15181E !important;
+            cursor: pointer !important;
+        }
+
+        [data-testid="stSidebar"] [data-baseweb="radio"] input:checked + div {
+            background-color: #1D4ED8 !important;
+            border-color: #1D4ED8 !important;
+        }
+
+        /* ─── Streamlit Inputs & Textareas ─── */
+        [data-testid="stTextInput"] input,
+        [data-testid="stTextArea"] textarea {
+            background-color: #FFFFFF !important;
+            color: #15181E !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 6px !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+            font-size: 0.92rem !important;
+            padding: 10px 14px !important;
+        }
+
+        [data-testid="stTextInput"] input::placeholder,
+        [data-testid="stTextArea"] textarea::placeholder {
+            color: #697386 !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stTextInput"] input:focus,
+        [data-testid="stTextArea"] textarea:focus {
+            border-color: #1D4ED8 !important;
+            box-shadow: 0 0 0 1px #1D4ED8 !important;
+            outline: none !important;
+        }
+
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] p {
+            color: #15181E !important;
+            font-weight: 500 !important;
+            font-size: 0.88rem !important;
+            margin-bottom: 4px !important;
+        }
+
+        /* ─── Selectboxes & Dropdowns ─── */
+        [data-testid="stSelectbox"] > div > div {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 6px !important;
+            color: #15181E !important;
+        }
+
+        [data-testid="stSelectbox"] span {
+            color: #15181E !important;
+            font-size: 0.90rem !important;
+        }
+
+        /* ─── Primary Buttons: #1D4ED8 with white text ─── */
+        button[kind="primary"],
+        .stButton > button[kind="primary"],
+        .stButton > button[data-testid="baseButton-primary"] {
+            background-color: #1D4ED8 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #1D4ED8 !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+            font-size: 0.90rem !important;
+            box-shadow: none !important;
+            transition: background-color 0.15s ease !important;
+        }
+
+        button[kind="primary"]:hover,
+        .stButton > button[kind="primary"]:hover,
+        .stButton > button[data-testid="baseButton-primary"]:hover {
+            background-color: #1E40AF !important;
+            border-color: #1E40AF !important;
+            color: #FFFFFF !important;
+        }
+
+        /* ─── Secondary Buttons: Light background with dark text ─── */
+        button[kind="secondary"],
+        .stButton > button,
+        .stButton > button[data-testid="baseButton-secondary"] {
+            background-color: #FFFFFF !important;
+            color: #15181E !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 6px !important;
+            font-weight: 500 !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+            font-size: 0.90rem !important;
+            box-shadow: none !important;
+            transition: all 0.15s ease !important;
+        }
+
+        button[kind="secondary"]:hover,
+        .stButton > button:hover {
+            background-color: #F0EEE8 !important;
+            border-color: #D1CBC0 !important;
+            color: #15181E !important;
+        }
+
+        /* ─── Tabs: Restrained cobalt indicator & readable dark text ─── */
+        button[data-baseweb="tab"] {
+            color: #4A5160 !important;
+            font-weight: 500 !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+            font-size: 0.90rem !important;
+            border-bottom: 2px solid transparent !important;
+            padding: 8px 16px !important;
+        }
+
+        button[data-baseweb="tab"]:hover {
+            color: #15181E !important;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #1D4ED8 !important;
+            font-weight: 600 !important;
+            border-bottom: 2px solid #1D4ED8 !important;
+        }
+
+        /* ─── Streamlit Expanders ─── */
+        [data-testid="stExpander"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 8px !important;
+            margin-bottom: 12px !important;
+        }
+
+        [data-testid="stExpander"] summary {
+            color: #15181E !important;
+            font-weight: 600 !important;
+            font-size: 0.92rem !important;
+            padding: 12px 16px !important;
+        }
+
+        [data-testid="stExpander"] summary span {
+            color: #15181E !important;
+        }
+
+        /* ─── Streamlit Metrics ─── */
+        [data-testid="stMetricLabel"] p {
+            color: #4A5160 !important;
+            font-size: 0.82rem !important;
+            font-weight: 500 !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: #15181E !important;
+            -webkit-text-fill-color: #15181E !important;
+            font-size: 1.70rem !important;
+            font-weight: 700 !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+        }
+
+        /* ─── Muted & Secondary Text ─── */
+        [data-testid="stCaptionContainer"] p,
+        .text-muted {
+            color: #697386 !important;
+            font-size: 0.82rem !important;
+        }
+
+        /* ─── SeekVault Hero Document Card ─── */
+        .instrument-card,
+        .seekvault-search-card {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 8px !important;
+            padding: 16px 20px !important;
+            margin-bottom: 12px !important;
+            box-shadow: 0 1px 2px rgba(21, 24, 30, 0.03) !important;
+        }
+
         .instrument-card:hover {
-            border-color: #818CF8;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.08);
-            transform: translateY(-2px);
+            border-color: #D1CBC0 !important;
+            box-shadow: 0 4px 12px rgba(21, 24, 30, 0.05) !important;
         }
 
-        /* Document Format Emblems with Colorful Gradients */
-        .format-badge {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.70rem;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            padding: 3px 8px;
-            border-radius: 6px;
-            display: inline-block;
-            vertical-align: middle;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        }
-        .format-pdf { 
-            background: linear-gradient(135deg, #FEE2E2, #FFE4E6) !important; 
-            color: #BE123C !important; 
-            border: 1px solid #FDA4AF !important; 
-        }
-        .format-docx { 
-            background: linear-gradient(135deg, #DBEAFE, #E0E7FF) !important; 
-            color: #1D4ED8 !important; 
-            border: 1px solid #BFDBFE !important; 
-        }
-        .format-txt { 
-            background: linear-gradient(135deg, #DCFCE7, #D1FAE5) !important; 
-            color: #047857 !important; 
-            border: 1px solid #A7F3D0 !important; 
-        }
-        .format-img { 
-            background: linear-gradient(135deg, #F3E8FF, #FAE8FF) !important; 
-            color: #7E22CE !important; 
-            border: 1px solid #E9D5FF !important; 
-        }
-
-        /* Real Passage Snippet Box */
         .instrument-snippet {
-            font-size: 0.88rem;
-            line-height: 1.55;
-            color: var(--ink-secondary);
-            background: var(--canvas-subtle);
-            border-left: 3px solid #818CF8;
-            padding: 9px 13px;
-            border-radius: 0 6px 6px 0;
-            margin: 10px 0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            white-space: pre-wrap;
-            word-break: break-word;
+            font-size: 0.88rem !important;
+            line-height: 1.55 !important;
+            color: #4A5160 !important;
+            background-color: #F0EEE8 !important;
+            border-left: 3px solid #D1CBC0 !important;
+            padding: 8px 12px !important;
+            border-radius: 0 4px 4px 0 !important;
+            margin: 8px 0 !important;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
         }
 
-        /* Vibrant Fun Highlight Mark */
         .instrument-snippet mark {
-            background: linear-gradient(120deg, #FEF08A 0%, #FDE047 100%) !important;
-            color: #78350F !important;
+            background-color: #FEF08A !important;
+            color: #15181E !important;
+            font-weight: 600 !important;
+            padding: 1px 4px !important;
+            border-radius: 2px !important;
+        }
+
+        /* ─── Document Format Emblems ─── */
+        .format-badge {
+            font-family: 'JetBrains Mono', Consolas, monospace !important;
+            font-size: 0.70rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.04em !important;
             padding: 2px 6px !important;
             border-radius: 4px !important;
-            font-weight: 700 !important;
-            box-shadow: 0 1px 2px rgba(234, 179, 8, 0.25) !important;
+            display: inline-block !important;
         }
 
-        /* Metadata Line */
-        .instrument-meta {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--ink-muted);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 6px;
+        .format-pdf { background-color: #FEE2E2 !important; color: #B42318 !important; border: 1px solid #FECACA !important; }
+        .format-docx { background-color: #EFF6FF !important; color: #1D4ED8 !important; border: 1px solid #BFDBFE !important; }
+        .format-txt { background-color: #F0FDF4 !important; color: #166534 !important; border: 1px solid #BBF7D0 !important; }
+        .format-img { background-color: #FAF5FF !important; color: #6B21A8 !important; border: 1px solid #E9D5FF !important; }
+
+        /* ─── Streamlit DataFrames / Tables ─── */
+        [data-testid="stDataFrame"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E6E2D8 !important;
+            border-radius: 6px !important;
         }
 
-        /* Legacy compatibility */
-        .seekvault-search-card {
-            background-color: #FFFFFF;
-            border: 1px solid #E6E2D8;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 14px;
-            box-shadow: 0 1px 3px rgba(22, 25, 30, 0.03);
-            transition: all 0.2s ease-in-out;
+        [data-testid="stDataFrame"] div {
+            color: #15181E !important;
         }
-        .seekvault-snippet-box {
-            background-color: #F0EEE8;
-            border-left: 3px solid #1D4ED8;
-            padding: 10px 14px;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', Consolas, monospace;
-            font-size: 0.88rem;
-            color: #15181E;
-            line-height: 1.5;
-            margin: 8px 0;
-            white-space: pre-wrap;
-            word-break: break-word;
+
+        /* ─── Streamlit Alerts ─── */
+        [data-testid="stAlert"] {
+            border-radius: 6px !important;
+            padding: 12px 16px !important;
+        }
+
+        [data-testid="stAlert"] p {
+            font-size: 0.88rem !important;
+            line-height: 1.45 !important;
         }
     </style>
     """

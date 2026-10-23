@@ -70,10 +70,10 @@ def render_system_health_page(
             <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1D4ED8; margin-bottom: 4px;">
                 System Telemetry & Diagnostics
             </div>
-            <h1 style="font-family: 'Newsreader', Georgia, serif; font-size: 2.2rem; font-weight: 600; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
+            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
                 Indexing & System Health
             </h1>
-            <p style="font-size: 0.95rem; color: #5A6270; margin: 0; line-height: 1.5;">
+            <p style="font-size: 0.95rem; color: #4A5160; margin: 0; line-height: 1.5;">
                 Live operational telemetry, vector consistency audits, and non-destructive self-healing routines.
             </p>
         </div>
@@ -131,14 +131,14 @@ def render_system_health_page(
     else:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-left: 4px solid #64748B; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-left: 4px solid #64748B; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                     <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748B;"></span>
                     <span style="font-size: 0.90rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">
                         System Idle
                     </span>
                 </div>
-                <div style="font-size: 0.88rem; color: #5A6270; line-height: 1.5; margin-left: 16px;">
+                <div style="font-size: 0.88rem; color: #4A5160; line-height: 1.5; margin-left: 16px;">
                     No background watcher daemon currently active or zero authorized folders configured.
                 </div>
             </div>
@@ -168,7 +168,7 @@ def render_system_health_page(
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Database & Vector Index Consistency
         </div>
         """,
@@ -239,7 +239,7 @@ def render_system_health_page(
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Failed File Inspections
         </div>
         """,
@@ -249,9 +249,9 @@ def render_system_health_page(
     if diag["failed_count"] == 0:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 20px; text-align: center; color: #5A6270; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 20px; text-align: center; color: #4A5160; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.92rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">Zero Ingestion Failures</div>
-                <div style="font-size: 0.84rem; color: #737373;">
+                <div style="font-size: 0.84rem; color: #697386;">
                     All files across authorized folders parsed and indexed successfully.
                 </div>
             </div>
@@ -294,7 +294,7 @@ def render_system_health_page(
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Real-Time Filesystem Watchdog Telemetry
         </div>
         """,
@@ -305,7 +305,7 @@ def render_system_health_page(
     with w1:
         st.markdown(
             f"""
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 6px;">
                     DAEMON OBSERVER
                 </div>
@@ -336,7 +336,7 @@ def render_system_health_page(
         else:
             st.markdown(
                 """
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; color: #5A6270; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; color: #4A5160; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                     No active filesystem watch paths registered. Authorize folders in the <strong>File Library</strong> to enable real-time monitoring.
                 </div>
                 """,

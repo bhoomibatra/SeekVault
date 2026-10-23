@@ -17,10 +17,10 @@ def render_privacy_center(repo: Repository):
             <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1D4ED8; margin-bottom: 4px;">
                 Local-First Audit & Compliance
             </div>
-            <h1 style="font-family: 'Newsreader', Georgia, serif; font-size: 2.2rem; font-weight: 600; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
+            <h1 style="font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1.85rem; font-weight: 700; letter-spacing: -0.015em; color: #15181E; margin: 0 0 8px 0; letter-spacing: -0.02em;">
                 Privacy & Security Center
             </h1>
-            <p style="font-size: 0.95rem; color: #5A6270; margin: 0; line-height: 1.5;">
+            <p style="font-size: 0.95rem; color: #4A5160; margin: 0; line-height: 1.5;">
                 Complete verification of local-only processing, tiered de-identification policies, and on-device storage residency.
             </p>
         </div>
@@ -78,7 +78,7 @@ def render_privacy_center(repo: Repository):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Tiered Classification Architecture
         </div>
         """,
@@ -89,16 +89,16 @@ def render_privacy_center(repo: Repository):
     with c1:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-top: 3px solid #059669; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-top: 3px solid #059669; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.85rem; font-weight: 700; color: #065F46; letter-spacing: 0.05em;">TIER 1</span>
                     <span style="font-size: 0.70rem; font-weight: 700; background: #ECFDF5; color: #065F46; padding: 2px 7px; border-radius: 10px; border: 1px solid #A7F3D0;">FULL</span>
                 </div>
                 <div style="font-size: 0.92rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Unrestricted Extraction</div>
-                <p style="font-size: 0.84rem; color: #5A6270; margin: 0 0 12px 0; line-height: 1.45;">
+                <p style="font-size: 0.84rem; color: #4A5160; margin: 0 0 12px 0; line-height: 1.45;">
                     Zero sensitive PII entities detected. Document contents are extracted and embedded directly into the FAISS semantic space.
                 </p>
-                <div style="font-size: 0.78rem; color: #737373; border-top: 1px solid #F0EEE9; padding-top: 8px;">
+                <div style="font-size: 0.78rem; color: #697386; border-top: 1px solid #F0EEE9; padding-top: 8px;">
                     <strong style="color: #404040;">Trigger:</strong> Clean academic papers, public notes, technical manuals.
                 </div>
             </div>
@@ -109,16 +109,16 @@ def render_privacy_center(repo: Repository):
     with c2:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-top: 3px solid #D97706; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-top: 3px solid #D97706; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.85rem; font-weight: 700; color: #92400E; letter-spacing: 0.05em;">TIER 2</span>
                     <span style="font-size: 0.70rem; font-weight: 700; background: #FFFBEB; color: #92400E; padding: 2px 7px; border-radius: 10px; border: 1px solid #FDE68A;">REDACTED</span>
                 </div>
                 <div style="font-size: 0.92rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Masked Semantic Embedding</div>
-                <p style="font-size: 0.84rem; color: #5A6270; margin: 0 0 12px 0; line-height: 1.45;">
+                <p style="font-size: 0.84rem; color: #4A5160; margin: 0 0 12px 0; line-height: 1.45;">
                     PII detected (emails, phones, national IDs). Sensitive spans are replaced with synthetic mask tokens prior to vector embedding.
                 </p>
-                <div style="font-size: 0.78rem; color: #737373; border-top: 1px solid #F0EEE9; padding-top: 8px;">
+                <div style="font-size: 0.78rem; color: #697386; border-top: 1px solid #F0EEE9; padding-top: 8px;">
                     <strong style="color: #404040;">Trigger:</strong> Invoices, billing statements, resumes, customer contacts.
                 </div>
             </div>
@@ -129,16 +129,16 @@ def render_privacy_center(repo: Repository):
     with c3:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-top: 3px solid #DC2626; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-top: 3px solid #DC2626; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.85rem; font-weight: 700; color: #991B1B; letter-spacing: 0.05em;">TIER 3</span>
                     <span style="font-size: 0.70rem; font-weight: 700; background: #FEF2F2; color: #991B1B; padding: 2px 7px; border-radius: 10px; border: 1px solid #FECACA;">METADATA ONLY</span>
                 </div>
                 <div style="font-size: 0.92rem; font-weight: 600; color: #15181E; margin-bottom: 6px;">Zero Content Storage</div>
-                <p style="font-size: 0.84rem; color: #5A6270; margin: 0 0 12px 0; line-height: 1.45;">
+                <p style="font-size: 0.84rem; color: #4A5160; margin: 0 0 12px 0; line-height: 1.45;">
                     Extreme sensitivity (passwords, master keys, seed phrases). <strong>Zero vectors</strong> and zero extracted text stored. Retrievable only by filename.
                 </p>
-                <div style="font-size: 0.78rem; color: #737373; border-top: 1px solid #F0EEE9; padding-top: 8px;">
+                <div style="font-size: 0.78rem; color: #697386; border-top: 1px solid #F0EEE9; padding-top: 8px;">
                     <strong style="color: #404040;">Trigger:</strong> Password vaults, API key configs, private credentials.
                 </div>
             </div>
@@ -153,7 +153,7 @@ def render_privacy_center(repo: Repository):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Data Storage Boundaries & Residency
         </div>
         """,
@@ -164,12 +164,12 @@ def render_privacy_center(repo: Repository):
     with d1:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     SOURCE FILES
                 </div>
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 10px;">User Storage Drives</div>
-                <div style="font-size: 0.83rem; color: #5A6270; line-height: 1.5;">
+                <div style="font-size: 0.83rem; color: #4A5160; line-height: 1.5;">
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Path:</strong> User authorized folders</div>
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Access Mode:</strong> Read-only stream</div>
                     <div><strong style="color: #15181E;">Guarantee:</strong> Original files are strictly never modified, moved, renamed, or deleted.</div>
@@ -182,12 +182,12 @@ def render_privacy_center(repo: Repository):
     with d2:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     METADATA & INDEX
                 </div>
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 10px;">SQLite Database</div>
-                <div style="font-size: 0.83rem; color: #5A6270; line-height: 1.5;">
+                <div style="font-size: 0.83rem; color: #4A5160; line-height: 1.5;">
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Path:</strong> <code style="font-size: 0.76rem; color: #1E40AF; background: #EFF6FF; padding: 1px 4px; border-radius: 3px;">data_storage/seekvault.db</code></div>
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Stored:</strong> File paths, SHA-256 hashes, FTS5 index, masked entity tokens</div>
                     <div><strong style="color: #15181E;">Guarantee:</strong> Zero plaintext sensitive credentials stored.</div>
@@ -200,12 +200,12 @@ def render_privacy_center(repo: Repository):
     with d3:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 16px; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1D4ED8; margin-bottom: 4px;">
                     VECTOR STORE
                 </div>
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 10px;">FAISS Indices</div>
-                <div style="font-size: 0.83rem; color: #5A6270; line-height: 1.5;">
+                <div style="font-size: 0.83rem; color: #4A5160; line-height: 1.5;">
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Path:</strong> <code style="font-size: 0.76rem; color: #1E40AF; background: #EFF6FF; padding: 1px 4px; border-radius: 3px;">data_storage/*.faiss</code></div>
                     <div style="margin-bottom: 4px;"><strong style="color: #15181E;">Stored:</strong> Normalized dense vector embeddings</div>
                     <div><strong style="color: #15181E;">Guarantee:</strong> Exactly zero vectors generated for Tier 3 documents.</div>
@@ -222,7 +222,7 @@ def render_privacy_center(repo: Repository):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             De-identified Sensitive Entity Audit
         </div>
         """,
@@ -233,9 +233,9 @@ def render_privacy_center(repo: Repository):
     if not all_entities:
         st.markdown(
             """
-            <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 8px; padding: 24px; text-align: center; color: #5A6270; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+            <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 24px; text-align: center; color: #4A5160; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="font-size: 0.95rem; font-weight: 600; color: #15181E; margin-bottom: 4px;">No Sensitive Entities Detected</div>
-                <div style="font-size: 0.85rem; color: #737373;">
+                <div style="font-size: 0.85rem; color: #697386;">
                     All currently indexed documents conform to Tier 1 (FULL) classification with clean privacy compliance.
                 </div>
             </div>
@@ -294,7 +294,7 @@ def render_privacy_center(repo: Repository):
     # ─────────────────────────────────────────────────────────────────────────
     st.markdown(
         """
-        <div style="font-size: 1.15rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Newsreader', Georgia, serif;">
+        <div style="font-size: 1.25rem; font-weight: 600; color: #15181E; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;">
             Architectural Security Commitments
         </div>
         """,
@@ -306,21 +306,21 @@ def render_privacy_center(repo: Repository):
         st.markdown(
             """
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">Zero Remote Transmission</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         All machine learning models, tokenizers, and database engines operate strictly on-device. No telemetry or query logging exists.
                     </div>
                 </div>
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">Source Immutability</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         Original files on local storage are opened in read-only mode and are never written to, altered, or deleted by SeekVault.
                     </div>
                 </div>
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">Zero-Trust Query Verification</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         Files residing in deleted, unmounted, or deauthorized directories are instantaneously suppressed at query execution time.
                     </div>
                 </div>
@@ -332,21 +332,21 @@ def render_privacy_center(repo: Repository):
         st.markdown(
             """
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">No PII Leakage in Vectors</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         Detected sensitive spans are sanitized into structured mask tokens prior to computing dense vector representations.
                     </div>
                 </div>
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">Zero Vectors for Sensitive Credentials</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         Documents classified as Tier 3 store exactly zero content vectors in FAISS and are retrievable strictly by exact filename.
                     </div>
                 </div>
-                <div style="background: #FFFFFF; border: 1px solid #E2DFD7; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="font-size: 0.88rem; font-weight: 600; color: #15181E;">Path-Aware Boundary Containment</div>
-                    <div style="font-size: 0.82rem; color: #5A6270; margin-top: 2px;">
+                    <div style="font-size: 0.82rem; color: #4A5160; margin-top: 2px;">
                         Filesystem symlinks and NTFS junction points pointing outside of authorized boundaries are strictly rejected during traversal.
                     </div>
                 </div>
