@@ -1,3 +1,4 @@
+import hashlib
 from typing import List, Dict, Any
 import logging
 from seekvault.privacy.recognizers import scan_custom_patterns
@@ -56,9 +57,11 @@ class PrivacyAnalyzer:
                 if results:
                     for res in results:
                         entity_str = text[res.start:res.end]
+                        h = hashlib.sha256(entity_str.encode("utf-8")).hexdigest()[:6]
                         detected_entities.append({
                             "entity_type": res.entity_type,
                             "entity_text": entity_str,
+                            "entity_token": f"<{res.entity_type}_REDACTED_{h}>",
                             "start_char": res.start,
                             "end_char": res.end,
                             "confidence": round(res.score, 2)

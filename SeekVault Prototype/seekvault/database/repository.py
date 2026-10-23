@@ -441,19 +441,26 @@ class Repository:
             # Clear old entities for this file before reinserting
             cursor.execute("DELETE FROM detected_entities WHERE file_id = ?", (file_id,))
             for ent in entities:
-                # entity_token must be a masked placeholder, never raw PII text.
-                # Callers should pass a redacted token like '<EMAIL_REDACTED>'.
-                entity_token = ent.get("entity_token") or ent.get("entity_text", "<REDACTED>")
-                # Strip any raw PII that somehow slipped through — safety net.
+                ent_type = ent.get("entity_type", "UNKNOWN")
+                raw_text = ent.get("entity_text", "")
+                if ent.get("entity_token") and ent["entity_token"] != raw_text:
+                    entity_token = ent["entity_token"]
+                elif raw_text:
+                    h = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()[:6]
+                    entity_token = f"<{ent_type}_REDACTED_{h}>"
+                else:
+                    entity_token = f"<{ent_type}_REDACTED>"
+
                 if len(entity_token) > 64:
-                    entity_token = "<REDACTED_OVERSIZED>"
+                    entity_token = f"<{ent_type}_REDACTED>"
+
                 cursor.execute("""
                     INSERT INTO detected_entities (
                         file_id, entity_type, entity_token, confidence
                     ) VALUES (?, ?, ?, ?)
                 """, (
                     file_id,
-                    ent.get("entity_type", "UNKNOWN"),
+                    ent_type,
                     entity_token,
                     ent.get("confidence", 1.0),
                 ))

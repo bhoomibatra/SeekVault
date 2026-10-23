@@ -153,11 +153,21 @@ class IngestionPipeline:
             )
 
             # Save Content & Entities
+            if privacy_tier == TIER_METADATA_ONLY:
+                searchable_preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
+                redacted_preview = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
+            elif privacy_tier == TIER_REDACTED:
+                searchable_preview = sanitized_text[:2000]
+                redacted_preview = sanitized_text[:2000]
+            else:
+                searchable_preview = raw_text[:2000]
+                redacted_preview = raw_text[:2000]
+
             self.repository.save_file_content(
                 file_id=file_id,
-                raw_char_count=raw_chars,
-                searchable_text_preview=raw_text[:2000],
-                redacted_preview=sanitized_text[:2000],
+                raw_char_count=raw_chars if privacy_tier != TIER_METADATA_ONLY else 0,
+                searchable_text_preview=searchable_preview,
+                redacted_preview=redacted_preview,
                 has_ocr=False
             )
             if detected_entities:
@@ -239,11 +249,22 @@ class IngestionPipeline:
                 error_detail=None
             )
 
+            if privacy_tier == TIER_METADATA_ONLY:
+                img_searchable = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
+                img_redacted = "[CONTENT HIDDEN - METADATA ONLY INDEXING]"
+            elif privacy_tier == TIER_REDACTED and ocr_text:
+                sanitized_ocr = PrivacySanitizer.sanitize(ocr_text, detected_entities)
+                img_searchable = sanitized_ocr[:2000]
+                img_redacted = sanitized_ocr[:2000]
+            else:
+                img_searchable = ocr_text[:2000]
+                img_redacted = ocr_text[:2000]
+
             self.repository.save_file_content(
                 file_id=file_id,
-                raw_char_count=len(ocr_text),
-                searchable_text_preview=ocr_text[:2000],
-                redacted_preview=ocr_text[:2000],
+                raw_char_count=len(ocr_text) if privacy_tier != TIER_METADATA_ONLY else 0,
+                searchable_text_preview=img_searchable,
+                redacted_preview=img_redacted,
                 has_ocr=has_ocr
             )
             if detected_entities:
