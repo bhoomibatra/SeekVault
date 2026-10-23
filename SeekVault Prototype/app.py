@@ -12,14 +12,18 @@ from seekvault.database.repository import Repository
 from seekvault.search.engine import SearchEngine
 from seekvault.ingestion.pipeline import IngestionPipeline
 from seekvault.monitoring.watcher import WatcherManager
+from seekvault.ui.components import inject_design_system
 
 # Page setup
 st.set_page_config(
-    page_title="SeekVault - Privacy-First Multimodal Semantic Search",
+    page_title="SeekVault - Privacy-First Multimodal Search",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Inject Obsidian Slate design tokens & styles
+inject_design_system()
 
 # Configure logging
 logging.basicConfig(
@@ -53,25 +57,26 @@ watcher = st.session_state.watcher
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="font-size: 1.8rem; margin-bottom: 0px;">🛡️ SeekVault</h1>
-        <p style="font-size: 0.85rem; color: #6B7280; margin-top: 2px;">Privacy-First Multimodal Search</p>
+        <h1 style="font-size: 1.8rem; margin-bottom: 0px; color: #F3F4F6;">🛡️ SeekVault</h1>
+        <p style="font-size: 0.85rem; color: #9CA3AF; margin-top: 2px;">Local-First Multimodal Search</p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Navigation Menu
+# Navigation Menu — Search as default landing page
 nav_choice = st.sidebar.radio(
     "Navigation",
     [
+        "🔍 Search",
         "📊 Dashboard",
-        "🔍 Semantic Search",
         "📁 Authorized Folders",
         "📄 Indexed Files",
         "🛡️ Privacy Center",
         "👯 Duplicates & Versions",
         "⚙️ Settings"
-    ]
+    ],
+    index=0
 )
 
 st.sidebar.markdown("---")
@@ -93,10 +98,10 @@ from seekvault.ui.pages.privacy_center import render_privacy_center
 from seekvault.ui.pages.duplicates_versions import render_duplicates_versions_page
 from seekvault.ui.pages.settings import render_settings_page
 
-if nav_choice == "📊 Dashboard":
-    render_dashboard(repo, watcher_status)
-elif nav_choice == "🔍 Semantic Search":
+if nav_choice == "🔍 Search":
     render_search_page(search_engine)
+elif nav_choice == "📊 Dashboard":
+    render_dashboard(repo, watcher_status)
 elif nav_choice == "📁 Authorized Folders":
     render_folders_page(repo, pipeline, watcher)
 elif nav_choice == "📄 Indexed Files":
