@@ -64,13 +64,13 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# Navigation Menu — Search as default landing page, File Library consolidating Folders & Files
+# Navigation Menu — Search as default landing page, System Health replacing legacy dashboard
 nav_choice = st.sidebar.radio(
     "Navigation",
     [
         "🔍 Search",
         "📁 File Library",
-        "📊 Dashboard",
+        "📊 System Health",
         "🛡️ Privacy Center",
         "👯 Duplicates & Versions",
         "⚙️ Settings"
@@ -91,7 +91,7 @@ st.sidebar.caption("SeekVault v1.0 • 100% Local & Private")
 # Page Routing
 from seekvault.ui.pages.search import render_search_page
 from seekvault.ui.pages.file_library import render_file_library_page
-from seekvault.ui.pages.dashboard import render_dashboard
+from seekvault.ui.pages.system_health import render_system_health_page
 from seekvault.ui.pages.privacy_center import render_privacy_center
 from seekvault.ui.pages.duplicates_versions import render_duplicates_versions_page
 from seekvault.ui.pages.settings import render_settings_page
@@ -100,8 +100,8 @@ if nav_choice == "🔍 Search":
     render_search_page(search_engine)
 elif nav_choice == "📁 File Library":
     render_file_library_page(repo, pipeline, watcher)
-elif nav_choice == "📊 Dashboard":
-    render_dashboard(repo, watcher_status)
+elif nav_choice == "📊 System Health":
+    render_system_health_page(repo, search_engine, pipeline, watcher)
 elif nav_choice == "🛡️ Privacy Center":
     render_privacy_center(repo)
 elif nav_choice == "👯 Duplicates & Versions":
