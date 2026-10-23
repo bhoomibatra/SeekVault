@@ -1,10 +1,13 @@
 import os
 import json
 import sqlite3
+import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from seekvault.database.connection import get_db_connection
 from seekvault.database.schema import init_db
+
+logger = logging.getLogger(__name__)
 
 class Repository:
     def __init__(self, db_path: Optional[Path] = None):
@@ -25,10 +28,48 @@ class Repository:
     # -------------------------------------------------------------
     # Authorized Folders
     # -------------------------------------------------------------
+    @staticmethod
+    def _validate_folder_path(folder_path: str) -> tuple:
+        """Validate and resolve a folder path for safe authorization.
+
+        Returns (resolved_norm_path, error_message_or_None).
+        Resolves symlinks where present so the stored path points to the real physical location.
+        Rejects paths that aren't absolute or use reserved Windows device names.
+        """
+        p = Path(folder_path)
+
+        # Must be an absolute path
+        if not p.is_absolute():
+            return None, f"Path must be absolute: '{folder_path}'"
+
+        # Resolve symlinks where present
+        try:
+            real_p = p.resolve()
+        except (OSError, RuntimeError) as exc:
+            return None, f"Path cannot be resolved: '{folder_path}' — {exc}"
+
+        if real_p.exists() and not real_p.is_dir():
+            return None, f"Path is not a directory: '{real_p}'"
+
+        # Windows: reject reserved device names
+        reserved = {"CON", "PRN", "AUX", "NUL",
+                    "COM1", "COM2", "COM3", "COM4", "COM5",
+                    "COM6", "COM7", "COM8", "COM9",
+                    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+                    "LPT6", "LPT7", "LPT8", "LPT9"}
+        if real_p.name.upper() in reserved:
+            return None, f"Path name is a reserved Windows device name: '{real_p.name}'"
+
+        norm_path = os.path.normcase(os.path.normpath(str(real_p)))
+        return norm_path, None
+
     def add_authorized_folder(self, folder_path: str, is_recursive: bool = True) -> int:
-        # Normalize and case-fold the stored path so all downstream comparisons
-        # are immune to Windows drive-letter / directory casing differences.
-        norm_path = os.path.normcase(os.path.normpath(os.path.abspath(folder_path)))
+        """Authorize a folder for indexing.  Resolves symlinks before storing so
+        the containment check is always against real filesystem paths."""
+        norm_path, error = self._validate_folder_path(folder_path)
+        if error:
+            logger.warning("add_authorized_folder rejected: %s", error)
+            raise ValueError(error)
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -40,6 +81,27 @@ class Repository:
                     updated_at = CURRENT_TIMESTAMP
             """, (norm_path, 1 if is_recursive else 0))
             return cursor.lastrowid or 0
+
+    def get_folder_file_counts(self) -> dict:
+        """Return {folder_id: (indexed_count, failed_count, pending_count)} for all folders."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT folder_id,
+                       SUM(CASE WHEN status = 'INDEXED'  THEN 1 ELSE 0 END) AS indexed_count,
+                       SUM(CASE WHEN status = 'FAILED'   THEN 1 ELSE 0 END) AS failed_count,
+                       SUM(CASE WHEN status = 'PENDING'  THEN 1 ELSE 0 END) AS pending_count
+                FROM files
+                GROUP BY folder_id
+            """)
+            return {
+                row["folder_id"]: {
+                    "indexed": row["indexed_count"] or 0,
+                    "failed":  row["failed_count"]  or 0,
+                    "pending": row["pending_count"] or 0,
+                }
+                for row in cursor.fetchall()
+            }
 
     def remove_authorized_folder(self, folder_id: int) -> bool:
         with self._get_conn() as conn:
@@ -70,35 +132,87 @@ class Repository:
     def is_path_authorized(self, file_path: str) -> bool:
         """Verify if a given file path is located inside any active authorized folder.
 
-        Uses os.path.normcase so that drive-letter and directory-name casing
-        differences on Windows never produce a false-negative authorization result.
+        Enforces:
+        1. Path-aware containment (not naive string-prefix checks) to block sibling prefixes.
+        2. Windows path normalization and case-folding.
+        3. Symlink and junction escape prevention: if the path or any parent is a link,
+           its resolved physical target must also reside within an authorized folder.
         """
-        norm_file = os.path.normcase(os.path.normpath(os.path.abspath(file_path)))
+        try:
+            p = Path(file_path)
+            abs_p = Path(os.path.normcase(os.path.normpath(os.path.abspath(file_path))))
+        except Exception:
+            return False
+
         folders = self.get_authorized_folders(active_only=True)
+        if not folders:
+            return False
+
+        norm_folders = []
         for f in folders:
-            # Stored paths were already normcase'd at insert time, but apply
-            # normcase here too so existing records without the update still work.
-            folder_dir = os.path.normcase(os.path.normpath(f["folder_path"]))
-            is_recursive = bool(f["is_recursive"])
+            f_norm = Path(os.path.normcase(os.path.normpath(f["folder_path"])))
+            norm_folders.append((f_norm, bool(f["is_recursive"])))
+
+        # 1. Lexical path-aware containment check
+        lexically_authorized = False
+        for f_norm, is_recursive in norm_folders:
             if is_recursive:
-                if norm_file.startswith(folder_dir + os.sep) or norm_file == folder_dir:
-                    return True
+                if abs_p == f_norm or f_norm in abs_p.parents:
+                    lexically_authorized = True
+                    break
             else:
-                if os.path.normcase(os.path.dirname(norm_file)) == folder_dir:
-                    return True
-        return False
+                if abs_p.parent == f_norm:
+                    lexically_authorized = True
+                    break
+
+        if not lexically_authorized:
+            return False
+
+        # 2. Symlink / junction resolution check (prevent boundary escape)
+        try:
+            if p.exists():
+                resolved_p = Path(os.path.normcase(os.path.normpath(str(p.resolve()))))
+                target_authorized = False
+                for f_norm, is_recursive in norm_folders:
+                    if is_recursive:
+                        if resolved_p == f_norm or f_norm in resolved_p.parents:
+                            target_authorized = True
+                            break
+                    else:
+                        if resolved_p.parent == f_norm:
+                            target_authorized = True
+                            break
+                if not target_authorized:
+                    logger.warning(
+                        "Symlink/junction escape attempt blocked: '%s' resolves to '%s' (outside authorized roots)",
+                        file_path, resolved_p
+                    )
+                    return False
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Could not resolve path '%s': %s", file_path, exc)
+            return False
+
+        return True
 
     def get_folder_for_path(self, file_path: str) -> Optional[int]:
-        """Return the folder ID that contains file_path, using case-insensitive comparison."""
-        norm_file = os.path.normcase(os.path.normpath(os.path.abspath(file_path)))
+        """Return the folder ID that contains file_path, using path-aware containment."""
+        try:
+            norm_file = Path(os.path.normcase(os.path.normpath(os.path.abspath(file_path))))
+        except Exception:
+            return None
+
         folders = self.get_authorized_folders(active_only=True)
+        # Sort folders by path length descending so the most specific (deepest nested) folder matches first
+        folders = sorted(folders, key=lambda f: len(f["folder_path"]), reverse=True)
         for f in folders:
-            folder_dir = os.path.normcase(os.path.normpath(f["folder_path"]))
+            folder_dir = Path(os.path.normcase(os.path.normpath(f["folder_path"])))
             is_recursive = bool(f["is_recursive"])
-            if is_recursive and (norm_file.startswith(folder_dir + os.sep) or norm_file == folder_dir):
-                return f["id"]
-            elif not is_recursive and os.path.normcase(os.path.dirname(norm_file)) == folder_dir:
-                return f["id"]
+            if is_recursive:
+                if norm_file == folder_dir or folder_dir in norm_file.parents:
+                    return f["id"]
+            else:
+                if norm_file.parent == folder_dir:
+                    return f["id"]
         return None
 
     # -------------------------------------------------------------

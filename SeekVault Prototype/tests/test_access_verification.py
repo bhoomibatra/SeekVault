@@ -128,3 +128,183 @@ def test_non_recursive_folder_boundary(repo):
         assert not repo.is_path_authorized(str(nested_file)), \
             "Nested file must NOT be authorized in non-recursive mode"
 
+
+def test_sibling_prefix_path_rejection(repo):
+    """TASK-05: Sibling folders that share a name prefix must NOT be authorized.
+    For example, authorizing 'C:\\Vault' must NOT grant access to 'C:\\Vault_Secret'
+    or 'C:\\VaultSibling'."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        auth_dir = base / "vault"
+        auth_dir.mkdir()
+        sibling_dir1 = base / "vault_secret"
+        sibling_dir1.mkdir()
+        sibling_dir2 = base / "vaultsibling"
+        sibling_dir2.mkdir()
+
+        secret_file1 = sibling_dir1 / "passwords.txt"
+        secret_file1.write_text("top secret")
+        secret_file2 = sibling_dir2 / "finances.xlsx"
+        secret_file2.write_text("financial data")
+
+        # Authorize only 'vault'
+        repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+
+        assert not repo.is_path_authorized(str(secret_file1)), (
+            f"Sibling folder '{sibling_dir1}' must NOT be authorized when only '{auth_dir}' is registered."
+        )
+        assert not repo.is_path_authorized(str(secret_file2)), (
+            f"Sibling folder '{sibling_dir2}' must NOT be authorized when only '{auth_dir}' is registered."
+        )
+        assert repo.get_folder_for_path(str(secret_file1)) is None
+        assert repo.get_folder_for_path(str(secret_file2)) is None
+
+
+def test_nested_folders_most_specific_attribution(repo):
+    """TASK-05: When both parent and child directories are authorized, files inside
+    the child folder should resolve to the most specific (deepest) folder ID."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        parent_dir = base / "parent"
+        parent_dir.mkdir()
+        child_dir = parent_dir / "child"
+        child_dir.mkdir()
+
+        parent_file = parent_dir / "parent_doc.txt"
+        parent_file.write_text("Parent doc")
+        child_file = child_dir / "child_doc.txt"
+        child_file.write_text("Child doc")
+
+        parent_fid = repo.add_authorized_folder(str(parent_dir), is_recursive=True)
+        child_fid = repo.add_authorized_folder(str(child_dir), is_recursive=True)
+
+        assert repo.is_path_authorized(str(parent_file))
+        assert repo.is_path_authorized(str(child_file))
+
+        # Parent file belongs to parent_fid
+        assert repo.get_folder_for_path(str(parent_file)) == parent_fid
+        # Child file resolves to the more specific child_fid
+        assert repo.get_folder_for_path(str(child_file)) == child_fid
+
+
+def test_symlink_and_junction_escape_prevention(repo):
+    """TASK-05: A symlink or junction inside an authorized folder that points
+    outside to an unauthorized directory must be BLOCKED from indexing and query access."""
+    import subprocess
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        auth_dir = base / "authorized"
+        auth_dir.mkdir()
+        secret_dir = base / "secret_unauthorized"
+        secret_dir.mkdir()
+
+        confidential = secret_dir / "confidential.txt"
+        confidential.write_text("Confidential un-authorized data")
+
+        repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+
+        # 1. Test directory junction escape (supported natively on Windows without admin)
+        junc_path = auth_dir / "escape_junction"
+        if os.name == "nt":
+            res = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(junc_path), str(secret_dir)],
+                capture_output=True, text=True
+            )
+            if res.returncode == 0:
+                junction_file = junc_path / "confidential.txt"
+                assert junction_file.exists(), "Junction file must exist on disk"
+                # Lexically it looks inside auth_dir, but physically resolves to secret_dir.
+                # Must be BLOCKED.
+                assert not repo.is_path_authorized(str(junction_file)), (
+                    "Junction escape out of authorized root must be blocked by is_path_authorized"
+                )
+
+        # 2. Test file symlink escape (if privileges permit)
+        symlink_file = auth_dir / "escape_symlink.txt"
+        try:
+            symlink_file.symlink_to(confidential)
+            assert not repo.is_path_authorized(str(symlink_file)), (
+                "Symlink pointing outside authorized root must be blocked"
+            )
+        except (OSError, NotImplementedError):
+            # Normal on Windows if Developer Mode / SeCreateSymbolicLinkPrivilege is not held
+            pass
+
+
+def test_internal_junction_allowed(repo):
+    """TASK-05: A junction that targets a subfolder within an authorized root is safe
+    and must remain authorized."""
+    import subprocess
+    if os.name != "nt":
+        pytest.skip("Directory junctions are Windows specific")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        auth_dir = base / "authorized"
+        auth_dir.mkdir()
+        sub_real = auth_dir / "real_sub"
+        sub_real.mkdir()
+        doc = sub_real / "notes.txt"
+        doc.write_text("Internal valid notes")
+
+        repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+
+        junc_path = auth_dir / "internal_link"
+        res = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(junc_path), str(sub_real)],
+            capture_output=True, text=True
+        )
+        if res.returncode == 0:
+            link_file = junc_path / "notes.txt"
+            assert repo.is_path_authorized(str(link_file)), (
+                "Internal junction pointing inside authorized root must be allowed"
+            )
+
+
+def test_folder_revocation_cascades_and_suppresses_results(repo):
+    """TASK-05: Revoking an authorized folder:
+    1. Removes the folder from authorized_folders.
+    2. Deletes all associated indexed file records in SQLite via ON DELETE CASCADE.
+    3. Suppresses any candidate results at query time via AccessVerifier."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        auth_dir = base / "to_revoke"
+        auth_dir.mkdir()
+        doc = auth_dir / "document.txt"
+        doc.write_text("Temporary project proposal")
+
+        fid = repo.add_authorized_folder(str(auth_dir), is_recursive=True)
+        file_id = repo.upsert_file(
+            folder_id=fid,
+            file_path=str(doc),
+            file_name="document.txt",
+            file_extension=".txt",
+            file_size=len("Temporary project proposal"),
+            file_hash="hash_revocation_test",
+            file_type="DOCUMENT",
+            modified_at="2026-10-23 12:00:00",
+            privacy_tier="FULL"
+        )
+
+        # Before revocation: file is accessible and returned
+        candidates = [(file_id, 0.99)]
+        results_before = AccessVerifier.filter_results(candidates, repo)
+        assert len(results_before) == 1
+        assert results_before[0][0]["id"] == file_id
+
+        # Revoke folder authorization
+        revoked = repo.remove_authorized_folder(fid)
+        assert revoked is True
+
+        # Folder list must not contain the revoked folder
+        active_folders = repo.get_authorized_folders()
+        assert not any(f["id"] == fid for f in active_folders)
+
+        # File record in SQLite must be deleted via foreign key cascade
+        file_rec = repo.get_file_by_id(file_id)
+        assert file_rec is None, "File record should be deleted when authorized folder is removed (CASCADE)"
+
+        # Query-time verifier must return 0 results
+        results_after = AccessVerifier.filter_results(candidates, repo)
+        assert len(results_after) == 0, "Revoked folder results must be suppressed"
+
