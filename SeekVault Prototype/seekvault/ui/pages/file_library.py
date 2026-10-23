@@ -24,18 +24,23 @@ def render_file_library_page(
     st.markdown(
         """
         <div style="margin-bottom: 20px;">
-            <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 6px; color: #F3F4F6;">
-                📁 File Library & Folders
-            </h1>
-            <p style="font-size: 0.95rem; color: #9CA3AF; margin-top: 0;">
-                Manage authorized directories and inspect indexed files with real-time privacy classifications.
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <h1 style="font-size: 1.95rem; font-weight: 700; letter-spacing: -0.6px; margin-bottom: 4px; color: #15181E;">
+                    File Library & Storage
+                </h1>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #828A98;">
+                    Scope: Authorized Directories & Registry
+                </span>
+            </div>
+            <p style="font-size: 0.90rem; color: #828A98; margin-top: 0; margin-bottom: 12px;">
+                Manage authorized local directories and inspect indexed file representations with verifiable privacy boundaries.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    tab_folders, tab_files = st.tabs(["📁 Authorized Folders", "📄 Indexed File Explorer"])
+    tab_folders, tab_files = st.tabs(["Authorized Locations", "Indexed Files Registry"])
 
     # ═════════════════════════════════════════════════════════════════════════
     # TAB 1: AUTHORIZED FOLDERS MANAGEMENT
@@ -43,12 +48,14 @@ def render_file_library_page(
     with tab_folders:
         st.markdown(
             """
-            <div style="background-color: #111827; border: 1px solid #24324D; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
-                <span style="font-size: 0.95rem; color: #F3F4F6; font-weight: 600;">🛡️ Strict Non-Mutation Guarantee:</span>
-                <span style="font-size: 0.90rem; color: #9CA3AF; margin-left: 6px;">
+            <div style="background-color: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(22, 25, 30, 0.02);">
+                <div style="font-size: 0.88rem; color: #15181E; font-weight: 600; margin-bottom: 2px;">
+                    Strict Non-Mutation Guarantee
+                </div>
+                <div style="font-size: 0.84rem; color: #4A5160; line-height: 1.5;">
                     Revoking folder authorization removes files from the search index immediately. 
-                    <strong>Your original files on disk are strictly never deleted, moved, or altered.</strong>
-                </span>
+                    <strong>Your original physical files on disk are strictly never deleted, moved, or altered.</strong>
+                </div>
             </div>
             """,
             unsafe_allow_html=True
@@ -157,23 +164,23 @@ def render_file_library_page(
                             st.rerun()
 
                     with c_info:
-                        st.markdown(f"📁 **`{f['folder_path']}`**")
-                        rec_label = "✅ Recursive" if f["is_recursive"] else "📄 Top-level only"
+                        st.markdown(f"**`{f['folder_path']}`**")
+                        rec_label = "Recursive" if f["is_recursive"] else "Top-level only"
                         status_summary = f"{counts['indexed']} indexed"
                         if counts["failed"] > 0:
-                            status_summary += f" | <span style='color:#EF4444;'>{counts['failed']} failed</span>"
+                            status_summary += f" | <span style='color:#DC2626;'>{counts['failed']} failed</span>"
                         if counts["pending"] > 0:
-                            status_summary += f" | <span style='color:#F59E0B;'>{counts['pending']} pending</span>"
+                            status_summary += f" | <span style='color:#D97706;'>{counts['pending']} pending</span>"
 
                         st.markdown(
-                            f"<span style='font-size:0.85rem; color:#9CA3AF;'>{rec_label} &nbsp;•&nbsp; {status_summary}</span>",
+                            f"<span style='font-size:0.80rem; font-family: \"JetBrains Mono\", monospace; color:#828A98;'>{rec_label} &nbsp;•&nbsp; {status_summary}</span>",
                             unsafe_allow_html=True
                         )
 
                     with c_actions:
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
-                            if st.button("🔄 Re-scan", key=f"lib_rescan_{fid}", use_container_width=True):
+                            if st.button("Re-scan", key=f"lib_rescan_{fid}", use_container_width=True):
                                 if os.path.exists(f["folder_path"]):
                                     with st.spinner(f"Re-scanning `{f['folder_path']}`..."):
                                         c = pipeline.scan_folder(f["folder_path"], is_recursive=bool(f["is_recursive"]))
@@ -184,12 +191,12 @@ def render_file_library_page(
                                     st.error("Folder no longer exists on disk.")
 
                         with btn_col2:
-                            if st.button("🗑️ Revoke", key=f"lib_revoke_{fid}", use_container_width=True):
+                            if st.button("Revoke", key=f"lib_revoke_{fid}", use_container_width=True):
                                 st.session_state.pending_revoke_folder_id = fid
                                 st.session_state.pending_revoke_folder_path = f["folder_path"]
                                 st.rerun()
 
-                    st.markdown("<hr style='margin: 10px 0; border: 0.5px solid #24324D;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #E6E2D8;'>", unsafe_allow_html=True)
 
     # ═════════════════════════════════════════════════════════════════════════
     # TAB 2: INDEXED FILE BROWSER & DEEP INSPECTOR
@@ -204,7 +211,7 @@ def render_file_library_page(
             f_choices = {"All Folders": None}
             for f in all_auth_folders:
                 f_name = Path(f["folder_path"]).name or f["folder_path"]
-                f_choices[f"📁 {f_name}"] = f["id"]
+                f_choices[f"{f_name}"] = f["id"]
             selected_f_label = st.selectbox("Filter Folder", list(f_choices.keys()), index=0)
             sel_folder_id = f_choices[selected_f_label]
 
@@ -232,7 +239,7 @@ def render_file_library_page(
             st.info("No files matching the active filter criteria.")
         else:
             st.markdown(
-                f"<div style='margin-bottom: 12px; color: #9CA3AF;'>Displaying <strong>{len(files)}</strong> file record(s)</div>",
+                f"<div style='margin-bottom: 12px; font-family: \"JetBrains Mono\", monospace; font-size: 0.78rem; color: #828A98;'>DISPLAYING <strong>{len(files)}</strong> FILE RECORD(S)</div>",
                 unsafe_allow_html=True
             )
 
@@ -252,7 +259,7 @@ def render_file_library_page(
             st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
 
             # ── Deep File Inspector ──────────────────────────────────────────
-            st.markdown("### 🔍 Deep File Inspector")
+            st.markdown("### File Inspector & Representation")
             file_options = {f"{f['id']}: {f['file_name']} [{f['privacy_tier']}]": f for f in files}
             selected_key = st.selectbox("Select a file to inspect full metadata & privacy status:", list(file_options.keys()))
 

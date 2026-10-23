@@ -56,37 +56,65 @@ watcher = st.session_state.watcher
 # Sidebar Navigation
 st.sidebar.markdown(
     """
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="font-size: 1.8rem; margin-bottom: 0px; color: #F3F4F6;">🛡️ SeekVault</h1>
-        <p style="font-size: 0.85rem; color: #9CA3AF; margin-top: 2px;">Local-First Multimodal Search</p>
+    <div style="padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid #E6E2D8;">
+        <div style="font-size: 1.25rem; font-weight: 700; letter-spacing: -0.4px; color: #15181E;">
+            SeekVault
+        </div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.70rem; color: #828A98; margin-top: 2px;">
+            LOCAL ENGINE v1.0 • PRIVACY FIRST
+        </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Navigation Menu — Search as default landing page, System Health replacing legacy dashboard
+# Navigation Menu — Minimalist editorial labels
 nav_choice = st.sidebar.radio(
-    "Navigation",
+    "Workspace Navigation",
     [
-        "🔍 Search",
-        "📁 File Library",
-        "📊 System Health",
-        "🛡️ Privacy Center",
-        "👯 Duplicates & Versions",
-        "⚙️ Settings"
+        "Search",
+        "File Library",
+        "System Health",
+        "Privacy Center",
+        "Duplicates & Versions",
+        "Settings"
     ],
-    index=0
+    index=0,
+    label_visibility="collapsed"
 )
 
-st.sidebar.markdown("---")
-# Monitoring Status Pill in Sidebar
+st.sidebar.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+
+# Monitoring Status in Sidebar
 watcher_status = watcher.get_status()
 if watcher_status["is_running"]:
-    st.sidebar.success(f"🟢 Watchdog Active ({watcher_status['watched_folder_count']} folders)")
+    watch_count = watcher_status['watched_folder_count']
+    st.sidebar.markdown(
+        f"""
+        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #4A5160;">
+            <span style="color: #10B981; font-weight: 700;">●</span> Watchdog Active ({watch_count} folders)
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 else:
-    st.sidebar.warning("🟡 Watchdog Idle")
+    st.sidebar.markdown(
+        """
+        <div style="padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #828A98;">
+            <span style="color: #F59E0B; font-weight: 700;">●</span> Watchdog Idle
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-st.sidebar.caption("SeekVault v1.0 • 100% Local & Private")
+st.sidebar.markdown(
+    """
+    <div style="margin-top: 8px; padding: 8px 12px; background: #FFFFFF; border: 1px solid #E6E2D8; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #4A5160;">
+        <span style="color: #10B981; font-weight: 700;">●</span> Local Zero-Trust Verified
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # Page Routing
 from seekvault.ui.pages.search import render_search_page
@@ -96,15 +124,15 @@ from seekvault.ui.pages.privacy_center import render_privacy_center
 from seekvault.ui.pages.duplicates_versions import render_duplicates_versions_page
 from seekvault.ui.pages.settings import render_settings_page
 
-if nav_choice == "🔍 Search":
+if nav_choice in ("Search", "🔍 Search"):
     render_search_page(search_engine)
-elif nav_choice == "📁 File Library":
+elif nav_choice in ("File Library", "📁 File Library"):
     render_file_library_page(repo, pipeline, watcher)
-elif nav_choice == "📊 System Health":
+elif nav_choice in ("System Health", "📊 System Health"):
     render_system_health_page(repo, search_engine, pipeline, watcher)
-elif nav_choice == "🛡️ Privacy Center":
+elif nav_choice in ("Privacy Center", "🛡️ Privacy Center"):
     render_privacy_center(repo)
-elif nav_choice == "👯 Duplicates & Versions":
+elif nav_choice in ("Duplicates & Versions", "👯 Duplicates & Versions"):
     render_duplicates_versions_page(repo)
-elif nav_choice == "⚙️ Settings":
+elif nav_choice in ("Settings", "⚙️ Settings"):
     render_settings_page(repo, search_engine)
