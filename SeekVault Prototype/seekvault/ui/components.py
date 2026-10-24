@@ -191,11 +191,9 @@ def inject_design_system() -> None:
         [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
         [data-testid="stExpander"] summary svg,
         [data-testid="stExpander"] summary div:first-child [data-testid="stIconMaterial"],
-        [data-testid="stExpander"] summary span:first-child,
         details summary [data-testid="stIconMaterial"],
         details summary [data-testid="stExpanderIcon"],
         details summary [data-testid="stExpanderStepChevron"],
-        details summary span:first-child,
         .stExpander summary [data-testid="stIconMaterial"] {
             font-size: 0 !important;
             color: transparent !important;
@@ -221,11 +219,9 @@ def inject_design_system() -> None:
         [data-testid="stExpander"] summary [data-testid="stExpanderStepChevron"]::after,
         [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"]::after,
         [data-testid="stExpander"] summary div:first-child [data-testid="stIconMaterial"]::after,
-        [data-testid="stExpander"] summary span:first-child::after,
         details summary [data-testid="stIconMaterial"]::after,
         details summary [data-testid="stExpanderIcon"]::after,
         details summary [data-testid="stExpanderStepChevron"]::after,
-        details summary span:first-child::after,
         .stExpander summary [data-testid="stIconMaterial"]::after {
             content: '' !important;
             display: block !important;
@@ -245,11 +241,9 @@ def inject_design_system() -> None:
         [data-testid="stExpander"][open] summary [data-testid="stExpanderStepChevron"]::after,
         [data-testid="stExpander"][open] summary [data-testid="stExpanderToggleIcon"]::after,
         [data-testid="stExpander"][open] summary div:first-child [data-testid="stIconMaterial"]::after,
-        [data-testid="stExpander"][open] summary span:first-child::after,
         details[open] summary [data-testid="stIconMaterial"]::after,
         details[open] summary [data-testid="stExpanderIcon"]::after,
         details[open] summary [data-testid="stExpanderStepChevron"]::after,
-        details[open] summary span:first-child::after,
         .stExpander[open] summary [data-testid="stIconMaterial"]::after {
             transform: rotate(45deg) !important;
             margin-top: -3px !important;
