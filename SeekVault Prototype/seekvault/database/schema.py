@@ -284,12 +284,33 @@ def init_db(conn: sqlite3.Connection, db_path: Optional[Path] = None) -> None:
 
     try:
         de_cols = [row[1] for row in conn.execute("PRAGMA table_info(detected_entities)").fetchall()]
-        if de_cols and "entity_token" not in de_cols:
-            if "entity_text" in de_cols:
-                conn.execute("ALTER TABLE detected_entities ADD COLUMN entity_token TEXT")
-                conn.execute("UPDATE detected_entities SET entity_token = COALESCE(entity_text, '<REDACTED>') WHERE entity_token IS NULL")
-            else:
-                conn.execute("ALTER TABLE detected_entities ADD COLUMN entity_token TEXT")
+        if "entity_text" in de_cols:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS _detected_entities_new (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_id      INTEGER NOT NULL,
+                    entity_type  TEXT NOT NULL,
+                    entity_token TEXT NOT NULL,
+                    confidence   REAL DEFAULT 1.0,
+                    detected_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+                )
+            """)
+            conn.execute("""
+                INSERT OR IGNORE INTO _detected_entities_new
+                    (id, file_id, entity_type, entity_token, confidence, detected_at)
+                SELECT id, file_id, entity_type,
+                       COALESCE(entity_token, entity_text, '<MIGRATED_REDACTED>'),
+                       confidence,
+                       detected_at
+                FROM detected_entities
+            """)
+            conn.execute("DROP TABLE detected_entities")
+            conn.execute("ALTER TABLE _detected_entities_new RENAME TO detected_entities")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_entities_file ON detected_entities(file_id)")
+            logger.info("Self-healing: migrated detected_entities to remove legacy entity_text.")
+        elif de_cols and "entity_token" not in de_cols:
+            conn.execute("ALTER TABLE detected_entities ADD COLUMN entity_token TEXT")
             logger.info("Self-healing: added missing detected_entities.entity_token column.")
     except Exception as exc:
         logger.warning("Could not verify detected_entities columns: %s", exc)
