@@ -18,7 +18,11 @@ from seekvault.ui.components import (
     inject_design_system,
 )
 from seekvault.ui.platform import pick_folder_dialog, pick_files_dialog
-from seekvault.ui.navigator import get_friendly_folder_name
+from seekvault.ui.navigator import (
+    get_friendly_folder_name,
+    render_folder_browser,
+    render_file_browser,
+)
 
 
 
@@ -106,7 +110,6 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                 """,
                 unsafe_allow_html=True
             )
-            from seekvault.ui.navigator import render_file_browser
             chosen_fls = render_file_browser(key_prefix="search_fls_nav")
 
             c_cancel_top, _ = st.columns([1, 4])
@@ -147,7 +150,6 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                 """,
                 unsafe_allow_html=True
             )
-            from seekvault.ui.navigator import render_folder_browser, get_friendly_folder_name
             chosen_folder = render_folder_browser(key_prefix="search_fld_nav")
 
             c_cancel_fld, _ = st.columns([1, 4])
@@ -413,8 +415,8 @@ def render_search_page(search_engine: SearchEngine, pipeline=None, watcher=None)
                             )
 
                         # Location Path and Metadata (respect show_full_path setting)
-                        parent_path = str(Path(file_path).parent)
-                        friendly_parent = get_friendly_folder_name(parent_path)
+                        parent_path = str(Path(file_path).parent) if file_path else ""
+                        friendly_parent = get_friendly_folder_name(parent_path) or parent_path or "Unknown Folder"
                         show_full_path = repo.get_setting("show_full_path", "0") == "1"
 
                         if show_full_path:

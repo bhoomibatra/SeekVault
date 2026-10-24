@@ -47,12 +47,19 @@ def get_friendly_folder_name(folder_path: str) -> str:
     """Return a clean, human-readable name for a folder path."""
     if not folder_path:
         return ""
-    p = Path(folder_path)
-    shortcuts = get_user_shortcuts()
-    for label, s_path in shortcuts.items():
-        if str(p.resolve()) == s_path:
-            return label
-    return p.name or str(folder_path)
+    try:
+        p = Path(folder_path)
+        shortcuts = get_user_shortcuts()
+        resolved_str = str(p.resolve())
+        for label, s_path in shortcuts.items():
+            if os.path.normcase(resolved_str) == os.path.normcase(s_path):
+                return label
+        return p.name or str(folder_path)
+    except Exception:
+        try:
+            return Path(folder_path).name or str(folder_path)
+        except Exception:
+            return str(folder_path)
 
 
 def inspect_location_for_indexing(

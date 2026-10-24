@@ -37,7 +37,11 @@ def test_friendly_folder_name():
 
     # Arbitrary folder returns basename
     assert get_friendly_folder_name("C:/Users/test/MyProject") == "MyProject"
+    assert get_friendly_folder_name(r"C:\Users\test\MyProject") == "MyProject"
+    assert get_friendly_folder_name("relative/subfolder") == "subfolder"
     assert get_friendly_folder_name("") == ""
+    assert get_friendly_folder_name(None) == ""
+    assert get_friendly_folder_name(".") != ""
 
 
 def test_inspect_location_with_supported_and_unsupported(tmp_path):

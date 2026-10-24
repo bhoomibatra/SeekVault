@@ -157,3 +157,79 @@ def test_search_page_rendering_contract():
     mock_repo.get_authorized_folders.return_value = []
     render_search_page(mock_engine)
 
+
+def test_search_page_renders_results_without_unbound_local_error():
+    """Regression test: render_search_page must render search results without UnboundLocalError."""
+    from seekvault.ui.pages.search import render_search_page
+    import streamlit as st
+
+    mock_engine = MagicMock(spec=SearchEngine)
+    mock_repo = MagicMock(spec=Repository)
+    mock_engine.repository = mock_repo
+
+    mock_repo.get_dashboard_stats.return_value = {"total_files": 5}
+    mock_repo.get_authorized_folders.return_value = []
+    mock_repo.get_setting.side_effect = lambda key, default=None: {
+        "search_mode": "HYBRID",
+        "search_results_per_page": "25",
+        "privacy_protection_mode": "MASK_SNIPPETS",
+        "show_full_path": "0",
+    }.get(key, default)
+
+    mock_engine.search_hybrid.return_value = [
+        {
+            "file_id": 1,
+            "file_name": "test_doc.pdf",
+            "file_path": "C:/fake/path/test_doc.pdf",
+            "file_extension": ".pdf",
+            "file_size": 1024,
+            "file_type": "DOCUMENT",
+            "modified_at": "2026-01-01 12:00:00",
+            "relevance_label": "Semantic",
+            "preview": "This is a search result passage.",
+            "privacy_tier": "FULL",
+            "entities": [],
+        }
+    ]
+
+    with patch("streamlit.text_input", return_value="deadlock"):
+        # Scenario 1: Friendly folder display (show_full_path="0")
+        render_search_page(mock_engine)
+
+        # Scenario 2: Full path display (show_full_path="1")
+        mock_repo.get_setting.side_effect = lambda key, default=None: {
+            "search_mode": "HYBRID",
+            "search_results_per_page": "25",
+            "privacy_protection_mode": "MASK_SNIPPETS",
+            "show_full_path": "1",
+        }.get(key, default)
+        render_search_page(mock_engine)
+
+        # Scenario 3: Missing/empty file_path
+        mock_engine.search_hybrid.return_value = [
+            {
+                "file_id": 2,
+                "file_name": "orphaned.txt",
+                "file_path": "",
+                "file_extension": ".txt",
+                "file_size": 256,
+                "file_type": "DOCUMENT",
+                "modified_at": "2026-01-01 12:00:00",
+                "relevance_label": "Keyword",
+                "preview": "Orphaned file snippet",
+                "privacy_tier": "FULL",
+                "entities": [],
+            }
+        ]
+        render_search_page(mock_engine)
+
+        # Scenario 4: Keyword search mode
+        mock_repo.get_setting.side_effect = lambda key, default=None: {
+            "search_mode": "KEYWORD_ONLY",
+            "search_results_per_page": "25",
+            "privacy_protection_mode": "MASK_SNIPPETS",
+            "show_full_path": "0",
+        }.get(key, default)
+        mock_engine.search_keyword.return_value = mock_engine.search_hybrid.return_value
+        render_search_page(mock_engine)
+
