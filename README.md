@@ -1,4 +1,4 @@
-# SeekVault
+# SeekVault 
 
 > **Local-First, Privacy-Preserving Multimodal Semantic File Search & Organization Engine**
 
